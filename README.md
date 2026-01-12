@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🌡️ Dashboard de Casos de Dengue – Nuevo León
 
 ![Dashboard Preview](assets/dashboard_preview.png)
@@ -63,3 +64,7 @@ Gráficas: Dona de clasificación de casos, treemap por municipio y línea de ev
 📝 Licencia
 
 MIT © 2026 Ramón Martinez
+=======
+# sistema-entomologico
+Frontend web para visualización geoespacial y estadística de casos de dengue, con mapas de calor, KPIs y gráficas, consumiendo datos públicos desde Supabase.
+>>>>>>> c09a6c7cb2a9470e6539791c618b6e9784fe4dff
