@@ -1,16 +1,26 @@
-const API_URL = "http://localhost:3000";
+/*************************************************
+ * CONFIGURACIÓN SUPABASE
+ *************************************************/
+const SUPABASE_URL = "https://dttmexasjpwdlnbikijx.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ";
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/*************************************************
+ * VARIABLES GLOBALES
+ *************************************************/
 let map, capaFumigaciones, capaLeyenda;
 let semanaActual = 1;
-let ultimaSemanaCargada = null;
-let capaImagen = null;
 let windowLayers = [];
+let firstLoadCenter = false;
 
-const cacheFumigaciones = new Map();
-let cargandoMapa = false;
 
+/*************************************************
+ * INIT
+ *************************************************/
 function init() {
-  // Inicializar mapa
-  map = L.map("map").setView([25.7, -100.3], 10);
+  map = L.map("map").setView([25.7, -100.3], 8);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(map);
@@ -18,12 +28,13 @@ function init() {
   initSlider();
   agregarLeyenda();
 
-  // cargar inicial
+  actualizarMunicipiosPorJurisdiccion(); // 👈 AQUI
   cargarFumigaciones();
   cargarTablaLotes();
 }
-
-
+/*************************************************
+ * SLIDER
+ *************************************************/
 function initSlider() {
   const slider = document.getElementById("sliderSemana");
 
@@ -31,8 +42,8 @@ function initSlider() {
     start: [1],
     step: 1,
     range: { min: 1, max: 52 },
-    tooltips: true,
     connect: [true, false],
+    tooltips: true,
     format: {
       to: v => `Semana ${Math.round(v)}`,
       from: v => parseInt(v.replace(/\D/g, ""), 10)
@@ -41,226 +52,162 @@ function initSlider() {
 
   slider.noUiSlider.on("update", values => {
     semanaActual = parseInt(values[0].replace(/\D/g, ""), 10);
-    document.getElementById("semanaLabel").textContent = `${semanaActual}`;
+    document.getElementById("semanaLabel").textContent = semanaActual;
   });
 
   slider.noUiSlider.on("change", () => {
+    firstLoadCenter = false;
     cargarFumigaciones();
   });
 }
 
-function colorPorInsecticida(tipo) {
-  if (!tipo) return "#BBBBBB";
-
-  tipo = tipo.toString().trim().toLowerCase()
-    .replace(/á/g,"a").replace(/é/g,"e").replace(/í/g,"i")
-    .replace(/ó/g,"o").replace(/ú/g,"u");
-
-  if (tipo.includes("clorpirifos")) return "#1F78B4";
-  if (tipo.includes("imidacloprid") || tipo.includes("praletrina")) return "#33A02C";
-  if (tipo.includes("malation") || tipo.includes("malati") || tipo.includes("malation")) return "#FF7F00";
-  if (tipo.includes("pirimifos")) return "#6A3D9A";
-  if (tipo.includes("transflutrina")) return "#E31A1C";
-
+/*************************************************
+ * COLORES
+ *************************************************/
+function colorPorInsecticida(tipo = "") {
+  const t = tipo.toLowerCase();
+  if (t.includes("clorpir")) return "#1F78B4";
+  if (t.includes("imid") || t.includes("pralet")) return "#33A02C";
+  if (t.includes("malat")) return "#FF7F00";
+  if (t.includes("pirim")) return "#6A3D9A";
+  if (t.includes("transflu")) return "#E31A1C";
   return "#BBBBBB";
 }
 
-/* Toast de alerta */
-function mostrarAlerta(texto, tipo = "error") {
+/*************************************************
+ * ALERTA
+ *************************************************/
+function mostrarAlerta(msg) {
   const box = document.getElementById("alertaDatos");
-  if (!box) return;
-  box.textContent = texto;
-
-  // Estilos según tipo (puedes extender)
-  if (tipo === "error") {
-    box.style.background = "#ff4d4d";
-  } else if (tipo === "info") {
-    box.style.background = "#2b7cff";
-  } else {
-    box.style.background = "#333";
-  }
-
+  box.textContent = msg;
   box.style.display = "block";
   box.style.opacity = "1";
-  box.style.transition = "opacity 300ms ease";
 
-  // Ocultar después de 3.2 s
-  clearTimeout(box._hideTimeout);
-  box._hideTimeout = setTimeout(() => {
+  setTimeout(() => {
     box.style.opacity = "0";
     setTimeout(() => box.style.display = "none", 300);
-  }, 3200);
+  }, 3000);
 }
 
-/* Cargar y pintar fumigaciones */
-
+/*************************************************
+ * CARGAR FUMIGACIONES (SUPABASE)
+ *************************************************/
 async function cargarFumigaciones() {
   const municipio = document.getElementById("municipioSelect").value || null;
   const jurisdiccion = document.getElementById("jurisdiccionSelect").value || null;
-  const semana = semanaActual;
-
-  // limpiar capas anteriores
-  windowLayers.forEach(l => map.removeLayer(l));
-  windowLayers = [];
-
-  // llamada al backend
-  const resp = await fetch(`${API_URL}/tiles/generar/${semana}?municipio=${municipio || ""}&jurisdiccion=${jurisdiccion || ""}`);
-  const json = await resp.json();
-
-  if (!json.ok) return;
-
-  for (const r of json.results) {
-    if (!r.ok || !r.bounds) continue;
-
-    const imgUrl = `${API_URL}${r.archivo}?t=${Date.now()}`;
-
-    const capa = L.imageOverlay(imgUrl, r.bounds, { opacity: 0.85 }).addTo(map);
-    windowLayers.push(capa);
-  }
-
-  // centrar si solo hay 1 imagen
-  if (json.results.length === 1 && json.results[0].bounds) {
-    map.fitBounds(json.results[0].bounds, { padding: [20, 20] });
-  }
-}
-
-
-
-
-function pintarFumigaciones(geojson, municipio) {
 
   if (capaFumigaciones) {
-    try { map.removeLayer(capaFumigaciones); } catch (e) {}
+    map.removeLayer(capaFumigaciones);
     capaFumigaciones = null;
   }
 
-  if (!geojson || !geojson.features || geojson.features.length === 0) {
-    mostrarAlerta("No hay datos para la semana seleccionada", "info");
+  let query = supabaseClient
+    .from("vw_fumigaciones_estado")
+    .select("geom, insecticida, manzana, municipio, jurisdiccion")
+    .eq("semana", semanaActual);
+
+  if (municipio) query = query.eq("municipio", municipio);
+  if (jurisdiccion) query = query.eq("jurisdiccion", jurisdiccion);
+
+  const { data, error } = await query;
+
+  if (error || !data || data.length === 0) {
+    mostrarAlerta("No hay datos para la semana seleccionada");
     return;
   }
 
-  const renderer = L.canvas({ padding: 0.5 });
+  const geojson = {
+    type: "FeatureCollection",
+    features: data.map(r => ({
+      type: "Feature",
+      geometry: r.geom,
+      properties: {
+        insecticida: r.insecticida,
+        manzana: r.manzana
+      }
+    }))
+  };
 
   capaFumigaciones = L.geoJSON(geojson, {
-    renderer,
+    renderer: L.canvas(),
     style: f => ({
       color: "#222",
-      weight: 0.5,
-      fillOpacity: 0.55,
+      weight: 0.4,
+      fillOpacity: 0.6,
       fillColor: colorPorInsecticida(f.properties.insecticida)
     }),
     onEachFeature: (f, layer) => {
-      const p = f.properties || {};
-      layer.options.title = `Mza ${p.manzana || "-"}\n${p.insecticida || "-"}`;
+      layer.bindTooltip(
+        `Manzana: ${f.properties.manzana}<br>${f.properties.insecticida}`
+      );
     }
   }).addTo(map);
 
-  // ✅ SOLO CENTRAR UNA VEZ CUANDO HAY MUNICIPIO
-  if (municipio && !window._fumigacionesFirstLoad) {
-    try {
-      const bounds = capaFumigaciones.getBounds();
-      if (bounds && bounds.isValid && bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [20, 20], animate: false });
-        window._fumigacionesFirstLoad = true;
-      }
-    } catch (e) {
-      console.warn("No se pudo centrar el mapa:", e);
-    }
+  if (!firstLoadCenter) {
+    map.fitBounds(capaFumigaciones.getBounds(), { padding: [20, 20] });
+    firstLoadCenter = true;
   }
 }
 
-
-/* Leyenda (se mantiene en el mapa) */
+/*************************************************
+ * LEYENDA
+ *************************************************/
 function agregarLeyenda() {
-  // Si ya existe, eliminar y recrear para evitar duplicados
-  if (capaLeyenda) {
-    try { capaLeyenda.remove(); } catch (e) {}
-    capaLeyenda = null;
-  }
+  if (capaLeyenda) map.removeControl(capaLeyenda);
 
-  const leyenda = L.control({ position: "bottomright" });
+  capaLeyenda = L.control({ position: "bottomright" });
 
-  leyenda.onAdd = function() {
-    const div = L.DomUtil.create("div", "legend");
-    div.innerHTML = `
-      <div style="
-        background:white;
-        padding:10px;
-        border-radius:8px;
-        box-shadow:0 3px 10px rgba(0,0,0,0.25);
-        width:220px;
-        font-size:13px;
-        line-height:1.35;
-      ">
-        <b style="display:block;margin-bottom:6px">Insecticida</b>
-        <div style="display:flex;align-items:center;"><i style="background:#1F78B4;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Clorpirifós-etil 13.624%</div>
-        <div style="display:flex;align-items:center;"><i style="background:#33A02C;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Imidacloprid / Praletrina</div>
-        <div style="display:flex;align-items:center;"><i style="background:#FF7F00;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Malatión</div>
-        <div style="display:flex;align-items:center;"><i style="background:#6A3D9A;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Pirimifos</div>
-        <div style="display:flex;align-items:center;"><i style="background:#E31A1C;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Transflutrina</div>
-        <div style="display:flex;align-items:center;margin-top:6px;"><i style="background:#BBBBBB;width:14px;height:14px;display:inline-block;margin-right:8px;border-radius:2px"></i> Otros</div>
-      </div>
-    `;
-    return div;
-  };
+ capaLeyenda.onAdd = () => {
+  const div = L.DomUtil.create("div", "legend");
+  div.innerHTML = `
+    <b>Insecticida</b><br>
+    <i style="background:#1F78B4"></i> Clorpirifós<br>
+    <i style="background:#33A02C"></i> Imidacloprid / Praletrina<br>
+    <i style="background:#FF7F00"></i> Malatión<br>
+    <i style="background:#6A3D9A"></i> Pirimifos<br>
+    <i style="background:#E31A1C"></i> Transflutrina<br>
+    <i style="background:#BBBBBB"></i> Otros
+  `;
+  return div;
+};
 
-  leyenda.addTo(map);
-  // guardamos referencia para poder remover en reinicios si hace falta
-  capaLeyenda = leyenda;
+  capaLeyenda.addTo(map);
 }
 
-// =======================================================
-// 📦 TABLA DE LOTES — SIN FILTRAR POR SEMANA
-// =======================================================
+/*************************************************
+ * TABLA LOTES
+ *************************************************/
 async function cargarTablaLotes() {
-  const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
+  const jurisdiccion = document.getElementById("jurisdiccionSelect").value || null;
 
-  let url = `${API_URL}/models/nebulizacion/lotes?`;
-  if (jurisdiccion) url += `jurisdiccion=${jurisdiccion}`;
+  let query = supabaseClient
+    .from("vw_lotes_resumen")
+    .select("*");
 
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error("Error al solicitar lotes");
-    const data = await resp.json();
+  if (jurisdiccion) query = query.eq("jurisdiccion", jurisdiccion);
 
-    const tbody = document.querySelector("#tablaLotes tbody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+  const { data, error } = await query;
+  if (error) return;
 
-    data.forEach(r => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r.lote}</td>
-        <td>${r.insecticida}</td>
-        <td>${r.total_usado}</td>
-        <td>${r.usos}</td>
-        <td>${r.semanas_usadas}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    console.error("Error cargando tabla lotes:", err);
-  }
+  const tbody = document.querySelector("#tablaLotes tbody");
+  tbody.innerHTML = "";
+
+  data.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.lote}</td>
+      <td>${r.insecticida}</td>
+      <td>${r.total_usado}</td>
+      <td>${r.usos}</td>
+      <td>${r.semanas_usadas}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-// =======================================================
-// 🔄 ACTUALIZAR AUTOMÁTICO AL CAMBIAR SELECTS
-// =======================================================
-document.getElementById("municipioSelect").addEventListener("change", () => {
-  window._fumigacionesFirstLoad = false; // 🔁 permitir nuevo centrado
-  cargarFumigaciones();
-  cargarTablaLotes();
-});
-
-document.getElementById("jurisdiccionSelect").addEventListener("change", () => {
-  actualizarMunicipiosPorJurisdiccion(); // sincronizamos municipios
-  cargarFumigaciones();
-  cargarTablaLotes();
-});
-
-// ===============================
-// MAPEO MANUAL: Jurisdicción → Municipios
-// ===============================
+/*************************************************
+ * JURISDICCIÓN → MUNICIPIOS (TU MAPEO ORIGINAL)
+ *************************************************/
 const jurisdiccionMunicipios = {
   1: [
     { id: 39, nombre: "Monterrey" }
@@ -331,29 +278,48 @@ const jurisdiccionMunicipios = {
     { id: 30, nombre: "Iturbide" },
     { id: 36, nombre: "Mier y Noriega" },
   ]
-};
+};  
 
 function actualizarMunicipiosPorJurisdiccion() {
-  const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
-  const municipioSelect = document.getElementById("municipioSelect");
+  const j = document.getElementById("jurisdiccionSelect").value;
+  const select = document.getElementById("municipioSelect");
 
-  // limpiar opciones actuales
-  municipioSelect.innerHTML = "";
+  select.innerHTML = `<option value="">Todos</option>`;
 
-  if (!jurisdiccionMunicipios[jurisdiccion]) {
-    municipioSelect.innerHTML = `<option value="">-- Sin municipios --</option>`;
+  if (!j) {
+    // 🚫 sin jurisdicción → municipio bloqueado
+    select.disabled = true;
     return;
   }
 
-  // agregar municipios correspondientes
-  jurisdiccionMunicipios[jurisdiccion].forEach(m => {
+  select.disabled = false;
+
+  jurisdiccionMunicipios[j]?.forEach(m => {
     const opt = document.createElement("option");
     opt.value = m.id;
     opt.textContent = m.nombre;
-    municipioSelect.appendChild(opt);
+    select.appendChild(opt);
   });
 }
 
-// Inicializar
+/*************************************************
+ * EVENTOS
+ *************************************************/
+document.getElementById("jurisdiccionSelect").addEventListener("change", () => {
+  actualizarMunicipiosPorJurisdiccion();
+  firstLoadCenter = false;
+  cargarFumigaciones();
+  cargarTablaLotes();
+});
+
+document.getElementById("municipioSelect").addEventListener("change", () => {
+  firstLoadCenter = false;
+  cargarFumigaciones();
+  cargarTablaLotes();
+});
+
+/*************************************************
+ * START
+ *************************************************/
 init();
 
