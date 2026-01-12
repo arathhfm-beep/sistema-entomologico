@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Público Dengue</title>
+
+  <!-- LIBRERÍAS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  height: auto;
+  overflow-y: auto;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background: linear-gradient(135deg, #eef2f7, #f8fafc);
+  color: #1f2937;
+}
+
+/* ================= HEADER ================= */
+header {
+  padding: 18px 30px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* ================= PANEL ================= */
+#panel {
+  width: 95%;
+  margin: 20px auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#panel select {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: rgba(255,255,255,0.9);
+}
+
+/* ================= GRID ================= */
+.dashboard-grid {
+  width: 95%;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* ================= KPIs ================= */
+.kpi-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.kpi {
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+  border-left: 6px solid;
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi.red { border-color: #ef4444; }
+.kpi.yellow { border-color: #facc15; }
+.kpi.blue { border-color: #3b82f6; }
+
+.kpi-label {
+  font-size: 14px;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* ================= CARDS ================= */
+.card {
+  background: rgba(255,255,255,.7);
+  backdrop-filter: blur(16px);
+  border-radius: 20px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.1);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================= MAPA Y TREEMAP ================= */
+.mapa-card {
+  grid-column: 1 / 8;
+  min-height: 460px;
+}
+
+.treemap-card {
+  grid-column: 8 / -1;
+  min-height: 460px;
+}
+
+#map,
+#treemapMunicipios {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+#treemapMunicipios svg {
+  width: 100%;
+  height: 100%;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.cases, .label {
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* ================= DONA Y PHMR ================= */
+.dona-card {
+  grid-column: 1 / 6;
+  min-height: 460px;
+  overflow: auto;
+}
+
+.phmr-card {
+  grid-column: 6 / -1;
+  min-height: 460px;
+  overflow: auto;
+}
+
+/* ================= CANVAS ================= */
+canvas {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 420px;
+  display: block;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 1100px) {
+  .mapa-card,
+  .treemap-card,
+  .dona-card,
+  .phmr-card {
+    grid-column: 1 / -1;
+    min-height: 420px;
+  }
+
+  canvas {
+    max-height: 360px;
+  }
+}
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Dashboard Público de Dengue</h1>
+</header>
+
+<section id="panel">
+  <label for="filtroMunicipio"><strong>Municipio:</strong></label>
+  <select id="filtroMunicipio"></select>
+</section>
+
+<main class="dashboard-grid">
+
+  <!-- KPIs -->
+  <section class="kpi-grid">
+    <div class="kpi red">
+      <span class="kpi-label">Confirmados</span>
+      <span class="kpi-value" id="kpiConfirmados">0</span>
+    </div>
+    <div class="kpi yellow">
+      <span class="kpi-label">Probables hoy</span>
+      <span class="kpi-value" id="kpiPendientes">0</span>
+    </div>
+    <div class="kpi blue">
+      <span class="kpi-label">Foráneos</span>
+      <span class="kpi-value" id="kpiForaneos">0</span>
+    </div>
+  </section>
+
+  <!-- MAPA -->
+  <section class="card mapa-card">
+    <div id="map"></div>
+  </section>
+
+  <!-- TREEMAP -->
+  <section class="card treemap-card">
+    <h4>Casos confirmados por municipio</h4>
+    <div id="treemapMunicipios"></div>
+  </section>
+
+  <!-- DONA -->
+  <section class="card dona-card">
+    <h4>Clasificación de casos</h4>
+    <canvas id="donaClasificacion"></canvas>
+  </section>
+
+  <!-- PHMR VS CASOS -->
+  <section class="card phmr-card">
+    <h4>Casos vs PHMR</h4>
+    <canvas id="graficaCasos"></canvas>
+  </section>
+
+</main>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../script/savana.js"></script>
+
+</body>
+</html>
+
+
+
+

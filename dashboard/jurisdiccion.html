@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SAVANA – Jurisdicción</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: linear-gradient(135deg, #e8eef5, #f5f7fa);
+  color: #222;
+}
+#header {
+  padding: 18px 30px;
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+#loginBox { display:flex; gap:10px; }
+#loginBox input { padding:8px 12px; border-radius:10px; border:1px solid #d1d5db; }
+#loginBox button { padding:8px 16px; border-radius:10px; border:none; background:#2563eb; color:white; cursor:pointer; }
+.container { width:95%; margin:20px auto; }
+
+#kpis {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:15px;
+  margin-bottom:20px;
+}
+.control-card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(10px);
+  padding:14px;
+  border-radius:14px;
+  text-align:center;
+}
+
+.filtros { display:flex; gap:12px; margin-bottom:14px; }
+.filtros input, .filtros select {
+  padding:8px 12px; border-radius:10px; border:1px solid #d1d5db;
+}
+
+.panel-table {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(12px);
+  border-radius:18px;
+  padding:16px;
+}
+table { width:100%; border-collapse:collapse; }
+th, td { padding:10px; font-size:13px; border-bottom:1px solid #e5e7eb; }
+
+.btn-detalle {
+  padding:6px 14px;
+  border:none;
+  border-radius:10px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+}
+.fila-detalle td { padding:0; border:none; }
+.detalle-wrapper { max-height:0; overflow:hidden; opacity:0; transition:.3s; }
+.detalle-wrapper.abierto { max-height:500px; opacity:1; }
+.detalle-box { padding:14px; background:#fff; }
+</style>
+</head>
+
+<body>
+
+<div id="header">
+  <h2>SAVANA – Jurisdicción</h2>
+  <div id="loginBox">
+    <input id="clave" placeholder="Clave de acceso">
+    <button onclick="activar()">Activar</button>
+  </div>
+</div>
+
+<div class="container">
+
+<div id="kpis">
+  <div class="control-card">Confirmados<div id="kpiConfirmados">0</div></div>
+  <div class="control-card">Probables Hoy<div id="kpiProbablesHoy">0</div></div>
+  <div class="control-card">Pendientes<div id="kpiPendientes">0</div></div>
+  <div class="control-card">Grave<div id="kpiGrave">0</div></div>
+  <div class="control-card">Signos<div id="kpiSignos">0</div></div>
+  <div class="control-card">No Grave<div id="kpiNgrave">0</div></div>
+</div>
+
+<div class="filtros">
+  <input id="busquedaFolio" placeholder="Buscar folio o nombre" oninput="aplicarFiltros()">
+  <select id="filtroEstatus" onchange="aplicarFiltros()">
+    <option value="">Todos</option>
+    <option value="CONFIRMADO">Confirmados</option>
+    <option value="PROBABLE">Probables</option>
+    <option value="DESCARTADO">Descartados</option>
+    <option value="DEFUNCION">Defunción</option>
+  </select>
+</div>
+
+<div class="panel-table">
+<table>
+<thead>
+<tr>
+  <th>Folio</th><th>Fecha</th><th>Estatus</th>
+  <th>Diagnóstico</th><th>Nombre</th><th></th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+let casosOriginales = [];
+let detalleAbierto = null;
+
+async function activar() {
+  const clave = document.getElementById("clave").value.trim();
+  if (!clave) return alert("Ingresa una clave");
+
+  const res = await fetch(
+    "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/hyper-worker",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clave })
+    }
+  );
+
+  const data = await res.json();
+
+  if (!data.ok || !Array.isArray(data.casos)) {
+    alert("Clave no válida o sin datos");
+    console.warn(data);
+    return;
+  }
+
+  casosOriginales = data.casos;
+  renderCasos(casosOriginales);
+  calcularKPIs(casosOriginales);
+}
+
+function aplicarFiltros() {
+  const texto = document.getElementById("busquedaFolio").value.toLowerCase();
+  const estatus = document.getElementById("filtroEstatus").value;
+
+  let filtrados = casosOriginales;
+
+  if (texto) {
+    filtrados = filtrados.filter(c =>
+      c.folio_caso?.toLowerCase().includes(texto) ||
+      c.nombre?.toLowerCase().includes(texto)
+    );
+  }
+
+  if (estatus) {
+    filtrados = filtrados.filter(c =>
+      c.estatus_caso === estatus
+    );
+  }
+
+  renderCasos(filtrados);
+  calcularKPIs(filtrados);
+}
+
+function renderCasos(lista) {
+  const tbody = document.getElementById("tabla");
+  tbody.innerHTML = "";
+
+  lista.forEach(c => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${c.folio_caso}</td>
+      <td>${c.fec_captura || ""}</td>
+      <td>${c.estatus_caso}</td>
+      <td>${c.diagnostico_final || c.diagnostico_probable || ""}</td>
+      <td>${c.nombre || ""}</td>
+      <td><button class="btn-detalle">Ver</button></td>
+    `;
+
+    const trD = document.createElement("tr");
+    trD.className = "fila-detalle";
+   trD.innerHTML = `
+  <td colspan="6">
+    <div class="detalle-wrapper">
+      <div class="detalle-box">
+        <b>Domicilio:</b> ${c.domicilio || "-"}<br>
+        <b>Tel:</b> ${c.telefono || "-"}<br><br>
+
+        <label><b>Manzana</b></label><br>
+        <input id="manzana_${c.folio_caso}" style="width:100%;padding:6px;margin-bottom:6px"><br>
+
+        <label><b>Sección</b></label><br>
+        <input id="seccion_${c.folio_caso}" style="width:100%;padding:6px;margin-bottom:6px"><br>
+
+        <label><b>Observaciones</b></label><br>
+        <textarea id="obs_${c.folio_caso}" rows="3" style="width:100%;padding:6px"></textarea><br>
+
+        <button class="btn-detalle"
+          onclick="guardarSeguimiento('${c.folio_caso}')">
+          Guardar seguimiento
+        </button>
+      </div>
+    </div>
+  </td>
+`;
+
+    tr.querySelector("button").onclick = () => {
+      const w = trD.querySelector(".detalle-wrapper");
+      if (detalleAbierto && detalleAbierto !== w) detalleAbierto.classList.remove("abierto");
+      w.classList.toggle("abierto");
+      detalleAbierto = w.classList.contains("abierto") ? w : null;
+    };
+
+    tbody.appendChild(tr);
+    tbody.appendChild(trD);
+  });
+}
+
+function calcularKPIs(lista) {
+  const hoy = new Date().toISOString().slice(0,10);
+  const conf = lista.filter(c=>c.estatus_caso==="CONFIRMADO");
+
+  kpiConfirmados.textContent = conf.length;
+  kpiProbablesHoy.textContent = lista.filter(c=>c.estatus_caso==="PROBABLE" && c.fec_captura?.startsWith(hoy)).length;
+  kpiPendientes.textContent = lista.filter(c=>!c.manzana || !c.sector).length;
+  kpiGrave.textContent = conf.filter(c=>c.diagnostico_final?.includes("GRAVE")).length;
+  kpiSignos.textContent = conf.filter(c=>c.diagnostico_final?.includes("SIGNOS")).length;
+  kpiNgrave.textContent = conf.filter(c=>c.diagnostico_final?.includes("NO GRAVE")).length;
+}
+
+async function guardarSeguimiento(folio) {
+  const manzana = document.getElementById(`manzana_${folio}`).value;
+  const seccion = document.getElementById(`seccion_${folio}`).value;
+  const observaciones = document.getElementById(`obs_${folio}`).value;
+  const clave = document.getElementById("clave").value;
+  
+  if (!manzana && !seccion) {
+    alert("No hay datos para guardar");
+    return;
+  }
+ const res = await fetch(
+    "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/guardar-seguimiento",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clave,
+        folio_caso: folio,
+        manzana,
+        sector: seccion,
+        observaciones
+      })
+    }
+  );
+
+  const data = await res.json();
+}
+</script>
+
+</body>
+</html>
+
+
+
+
+
+

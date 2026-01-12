@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sistema Estratégico de Nebulizacion</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+  <!-- Tipografía moderna -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div id="header">
+    <h1 id="tituloPrincipal">Sistema Estratégico de Generación de Bunches de Nebulización </h1>
+  </div>
+
+  <!-- =========================================================
+       PANEL DE CONTROLES ESTILO PHMR
+    ========================================================== -->
+  <div id="panel">
+
+    <div class="control-card">
+      <label>Jurisdicción:</label>
+      <select id="jurisdiccionSelect">
+        <option value="">Todas</option>
+        <option value="1">Jurisdicción 1</option>
+        <option value="2">Jurisdicción 2</option>
+        <option value="3">Jurisdicción 3</option>
+        <option value="4">Jurisdicción 4</option>
+        <option value="5">Jurisdicción 5</option>
+        <option value="6">Jurisdicción 6</option>
+        <option value="7">Jurisdicción 7</option>
+        <option value="8">Jurisdicción 8</option>
+      </select>
+    </div>
+
+    <div class="control-card">
+      <label>Municipio:</label>
+      <select id="municipioSelect">
+        <option value="">-- Selecciona municipio --</option>
+      </select>
+    </div>
+
+    <div class="control-card">
+  <label>Semana epidemiológica:</label>
+
+  <div class="rango-semanas">
+    <input type="number" id="semanaInicio" min="1" max="52" value="40">
+    <span class="separador">–</span>
+    <input type="number" id="semanaFin" min="1" max="52" value="42">
+  </div>
+</div>
+
+    <div class="control-card">
+      <label class="control-label">Vehículos disponibles:</label>
+      <input type="number" id="vehiculos" min="1" max="10" value="2">
+    </div>
+
+    <button class="btn" id="btnGenerar">Generar</button>
+  </div>
+
+  <main class="container">
+    <section class="card">
+      <div id="map"></div>
+      <button class="btn" id="btnExportar">Exportar mapa</button>
+  </section>
+
+  <div id="tablaContainer" class="panel-table">
+    <h4>Bunches sugeridos</h4>
+  <table id="tablaBunches" class="tablaPHMR">
+    <thead>
+      <tr>
+        <th>Bunche</th>
+        <th>Riesgo</th>
+        <th>Secciones</th>
+        <th>Color</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  
+  </main>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
+  <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
+  <script>
+    const supa = supabase.createClient(
+  "https://dttmexasjpwdlnbikijx.supabase.co",
+  "sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ"
+);
+    let map;
+    let capaBunches = null;
+
+    /* ------------------------------------------------------------
+       1. INICIALIZACIÓN
+     ------------------------------------------------------------ */
+    document.addEventListener("DOMContentLoaded", () => {
+      map = L.map("map").setView([25.7, -100.3], 11);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+
+      actualizarMunicipiosPorJurisdiccion();
+      document.getElementById("btnGenerar").addEventListener("click", cargarBunches);
+    });
+
+    /* ------------------------------------------------------------
+       2. JURISDICCIÓN → MUNICIPIOS (Filtro dinámico)
+     ------------------------------------------------------------ */
+    const jurisdiccionMunicipios = {
+      1: [ { id:39, nombre:"Monterrey" } ],
+      2: [ { id:1, nombre:"Abasolo" },{ id:10, nombre:"Carmen" },{ id:12, nombre:"Cienega de Flores" },{ id:21, nombre:"General Escobedo" },{ id:25, nombre:"General Zuazua" },{ id:37, nombre:"Mina" },{ id:39, nombre:"Monterrey" },{ id:47, nombre:"Hidalgo" },{ id:45, nombre:"Salinas Victoria" },{ id:46, nombre:"San Nicolás de los Garza" } ],
+      3: [ { id:18, nombre:"García" },{ id:19, nombre:"San Pedro Garza García" },{ id:39, nombre:"Monterrey" },{ id:48, nombre:"Santa Catarina" } ],
+      4: [ { id:6, nombre:"Apodaca" },{ id:26, nombre:"Guadalupe" },{ id:31, nombre:"Juarez" }],
+      5: [ { id:2, nombre:"Agualeguas" },{ id:5, nombre:"Anáhuac" },{ id:8, nombre:"Bustamante" },{ id:23, nombre:"General Treviño" },{ id:32, nombre:"Lampazos" },{ id:40, nombre:"Parás" },{ id:44, nombre:"Sabinas Hidalgo" },{ id:50, nombre:"Vallecillo" },{ id:51, nombre:"Villaldama" } ],
+      6: [ { id:3, nombre:"Los Aldamas" },{ id:9, nombre:"Cadereyta Jiménez" },{ id:11, nombre:"Cerralvo" },{ id:13, nombre:"China" },{ id:15, nombre:"Doctor Coss" },{ id:16, nombre:"Doctor González" },{ id:20, nombre:"General Bravo" },{ id:27, nombre:"Los Herrera" },{ id:28, nombre:"Higueras" },{ id:34, nombre:"Marín" },{ id:35, nombre:"Melchor Ocampo" },{ id:41, nombre:"Pesquería" },{ id:42, nombre:"Ramones" } ],
+      7: [ { id:4, nombre:"Allende" },{ id:22, nombre:"General Terán" },{ id:29, nombre:"Hualahuises" },{ id:33, nombre:"Linares" },{ id:38, nombre:"Montemorelos" },{ id:43, nombre:"Rayones" },{ id:49, nombre:"Santiago" } ],
+      8: [ { id:7, nombre:"Aramberri" },{ id:14, nombre:"Doctor Arroyo" },{ id:17, nombre:"Galeana" },{ id:24, nombre:"General Zaragoza" },{ id:30, nombre:"Iturbide" },{ id:36, nombre:"Mina" } ]
+    };
+
+    function actualizarMunicipiosPorJurisdiccion() {
+      const j = document.getElementById("jurisdiccionSelect").value;
+      const muni = document.getElementById("municipioSelect");
+      muni.innerHTML = '<option value="">-- Selecciona municipio --</option>';
+      if (!j || !jurisdiccionMunicipios[j]) return;
+      jurisdiccionMunicipios[j].forEach(m => {
+        muni.innerHTML += `<option value="${m.id}">${m.nombre}</option>`;
+      });
+    }
+
+    document.getElementById("jurisdiccionSelect")
+      .addEventListener("change", actualizarMunicipiosPorJurisdiccion);
+
+    /* ------------------------------------------------------------
+       3. CARGAR BUNCHES DESDE EL ENDPOINT
+     ------------------------------------------------------------ */
+async function cargarBunches() {
+  const jurisdiccion = parseInt(document.getElementById("jurisdiccionSelect").value, 10);
+const municipio = parseInt(document.getElementById("municipioSelect").value, 10); 
+  const semanaInicio = parseInt(document.getElementById("semanaInicio")?.value);
+  const semanaFin = parseInt(document.getElementById("semanaFin")?.value);
+  const vehiculos = parseInt(document.getElementById("vehiculos")?.value);
+
+  if (isNaN(semanaInicio) || isNaN(semanaFin)) {
+    alert("Captura semanas válidas");
+    return;
+  }
+
+  if (semanaFin < semanaInicio) {
+    alert("La semana final no puede ser menor");
+    return;
+  }
+if (isNaN(jurisdiccion)) {
+  alert("Debes seleccionar una jurisdicción");
+  return;
+}
+
+if (isNaN(municipio)) {
+  alert("Debes seleccionar un municipio");
+  return;
+}
+
+
+  const semanas = [];
+  for (let s = semanaInicio; s <= semanaFin; s++) semanas.push(s);
+console.log({
+  p_jurisdiccion: jurisdiccion,
+  p_municipio: municipio,
+  p_semanas: semanas,
+  p_vehiculos: vehiculos,
+  tipos: {
+    jurisdiccion: typeof jurisdiccion,
+    municipio: typeof municipio
+  }
+});
+ 
+
+  const { data, error } = await supa.rpc("get_bunches_priorizados", {
+    p_jurisdiccion: jurisdiccion,
+    p_municipio: municipio,
+    p_semanas: semanas,
+    p_vehiculos: vehiculos
+  });
+
+  if (error) {
+    console.error("RPC error:", error);
+    alert("Error al generar bunches (ver consola)");
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    alert("No hay bunches para esos criterios");
+    return;
+  }
+
+  pintarBunches(data);
+  actualizarTabla(data);
+}
+    /* ------------------------------------------------------------
+       4. TABLA DE BUNCHES
+     ------------------------------------------------------------ */
+function actualizarTabla(bunches) {
+  const tbody = document.querySelector("#tablaBunches tbody");
+  tbody.innerHTML = "";
+
+  bunches.forEach(b => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${b.bunche_id}</td>
+      <td>—</td>
+      <td><strong>${Number(b.riesgo_total).toFixed(1)}</strong></td>
+      <td>${b.ranking}</td>
+      <td>
+        <span class="color-box"
+          style="background:${getColor(b.ranking)}">
+        </span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+function pintarBunches(bunches) {
+  if (capaBunches) map.removeLayer(capaBunches);
+
+  const features = bunches.map(b => ({
+    type: "Feature",
+    geometry: b.geom_geojson,
+    properties: {
+      bunche: b.bunche_id,
+      riesgo: b.riesgo_total,
+      ranking: b.ranking
+    }
+  }));
+
+  capaBunches = L.geoJSON(
+    {
+      type: "FeatureCollection",
+      features
+    },
+    {
+      // 🔑 CLAVE
+      renderer: L.canvas(),
+
+      style: f => ({
+        fillColor: getColor(f.properties.ranking),
+        fillOpacity: 0.7,
+
+        // sin bordes
+        color: "transparent",
+        weight: 0,
+        opacity: 0
+      }),
+
+      onEachFeature: (f, layer) => {
+        layer.bindPopup(`
+          <strong>Bunche:</strong> ${f.properties.bunche}<br>
+          <strong>Riesgo:</strong> ${f.properties.riesgo.toFixed(1)}<br>
+          <strong>Ranking:</strong> ${f.properties.ranking}
+        `);
+      }
+    }
+  ).addTo(map);
+
+  map.fitBounds(capaBunches.getBounds(), { padding: [20, 20] });
+}
+function getColor(ranking) {
+  if (ranking <= 5) return "#d73027";
+  if (ranking <= 10) return "#fc8d59";
+  if (ranking <= 15) return "#fee08b";
+  return "#91cf60";
+}
+document.getElementById("semanaInicio").addEventListener("change", e => {
+  const ini = parseInt(e.target.value);
+  const finEl = document.getElementById("semanaFin");
+  const fin = parseInt(finEl.value);
+
+  if (!isNaN(ini) && !isNaN(fin) && fin < ini) {
+    finEl.value = ini;
+  }
+});
+document.getElementById("btnExportar").addEventListener("click", exportarMapa);
+
+function exportarMapa() {
+  leafletImage(map, function(err, canvas) {
+    if (err) {
+      console.error(err);
+      alert("Error al exportar mapa");
+      return;
+    }
+
+    const img = document.createElement("a");
+    img.href = canvas.toDataURL("image/png");
+    img.download = "bunches_nebulizacion.png";
+    img.click();
+  });
+}
+
+  </script>
+
+</body>
+</html>
+
+

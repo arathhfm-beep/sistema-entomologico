@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Mapa de Calor PHMR</title>
+
+  <!-- Leaflet & Plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
+
+  <!-- GOOGLE FONT -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <div id="header">
+    <h1 id="tituloPrincipal">Mapa de calor - PHMR</h1>
+  </div>
+
+  <!-- Panel de controles -->
+  <div id="panel">
+    <div class="control-card">
+      <label>Municipio:</label><br>
+    <select id="municipioSelect">
+      <option value="">-- Selecciona municipio --</option>
+      <option value="48">Santa Catarina</option>
+      <option value="39">Monterrey</option>
+      <option value="4">Allende</option>
+      <option value="5">Anáhuac</option>
+      <option value="6">Apodaca</option>
+      <option value="9">Cadereyta Jiménez</option>
+      <option value="10">Carmen</option>
+      <option value="14">Doctor Arroyo</option>
+      <option value="21">General Escobedo</option>
+      <option value="26">Guadalupe</option>
+      <option value="31">Iturbide</option>
+      <option value="33">Linares</option>
+      <option value="38">Montemorelos</option>
+      <option value="44">Sabinas Hidalgo</option>
+      <option value="46">San Nicolás de los Garza</option>
+      <option value="49">Santiago</option>
+    </select>
+    </div>
+     <div class="control-card">
+      <label>Semana:</label><br>
+      <span id="semanaLabel"></span>
+      <div id="sliderSemana"></div>
+    </div>
+  </div>
+
+    
+  </div>
+
+  <main class="container">
+    <!-- Mapa -->
+       <section class="card">
+      <div id="map"></div>
+  </section>
+
+      <!-- Gráfica -->
+      <div id="chartContainer" class="panel-table">
+        <h4>Promedio Semanal de PHMR</h4>
+        <canvas id="graficaPHMR"></canvas>
+        <div id="panelInfoPHMR"></div>
+      </div>
+
+  </main>
+ 
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="/script/phmr.js"></script>
+
+</body>
+</html>
+

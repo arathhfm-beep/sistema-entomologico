@@ -1,0 +1,368 @@
+/* ============================================================
+   🎨 GLOBAL
+============================================================ */
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  background: linear-gradient(135deg, #e8eef5, #f5f7fa);
+  color: #222;
+}
+
+/* ============================================================
+   🔵 HEADER MODERNO
+============================================================ */
+#header {
+  padding: 18px 30px;
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+#tituloPrincipal {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+
+/* ============================================================
+   🎛️ PANEL DE CONTROLES MODERNO Y CENTRADO
+============================================================ */
+#panel {
+  width: 93%;
+  margin: 10px auto;
+  padding: 10px 28px;
+
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  border-radius: 18px;
+  
+}
+
+/* Cada grupo del panel */
+.control-card {
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(10px);
+  padding: 14px 18px;
+  border-radius: 14px;
+  width: 240px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.35);
+}
+
+.control-card label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+
+.control-card select,
+.control-card input {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+
+/* ============================================================
+   🎚️ SLIDER MODERNO — Tooltip sobre el thumb
+============================================================ */
+#sliderSemana {
+  width: 230px;
+  margin-top: 10px;
+}
+
+/* Estilo general del slider */
+.noUi-target {
+  background: rgba(255,255,255,0.7);
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Barra de progreso */
+.noUi-connect {
+  background: #2563eb;
+}
+
+/* Thumb del slider */
+.noUi-handle {
+  background: #fff;
+  border-radius: 10px;
+  border: none;
+  width: 22px !important;
+  height: 22px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Tooltip moderno encima */
+.noUi-tooltip {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+
+/* Slider semana */
+#semanaLabel {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+#sliderSemana {
+  width: 240px;
+  margin-top: 5px;
+}
+.btn {
+  padding: 12px 26px;
+  border: none;
+  outline: none;
+
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: white;
+  font-weight: 600;
+  font-size: 15px;
+
+  border-radius: 14px;
+  cursor: pointer;
+
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.25),
+              inset 0 -3px 6px rgba(255, 255, 255, 0.2);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  transition: all 0.25s ease;
+}
+
+/* Hover elegante */
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.33);
+  background: linear-gradient(135deg, #2f6ff0, #4d8afc);
+}
+
+/* Al presionar */
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.20);
+}
+
+
+/* ============================================================
+   🗺️ MAPA (DENTRO DE .card)
+============================================================ */
+.card {
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}
+
+#map {
+  width: 100%;
+  height: 60vh;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+
+/* ============================================================
+   📋 TABLA — MODERNA
+============================================================ */
+.panel-table {
+  width: 93%;
+  margin: 20px auto;
+  padding: 20px;
+
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border-radius: 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}
+
+.panel-table h4 {
+  font-size: 18px;
+  margin: 0 0 14px 0;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+#tablaLotes,
+#tablaBunches {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#tablaLotes thead th,
+#tablaBunches thead th{
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#tablaLotes tbody td,
+#tablaBunches tbody td {
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+  border-bottom: 1px solid #eef2f6;
+}
+ .color-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1px solid rgba(0,0,0,0.25);
+      display: inline-block;
+    }
+#tablaLotes tbody tr:hover,
+#tablaBunches tbody tr:hover{
+  background: rgba(255,255,255,0.35);
+  cursor: pointer;
+}
+
+
+
+/* ============================================================
+   📐 LAYOUT GRID (como PHMR)
+============================================================ */
+.container {
+  width: 95%;
+  margin: auto;
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 1fr;
+}
+/* =============================================
+   📊 TARJETA DE GRÁFICA — GLASSMORPHISM MODERNO
+   ============================================= */
+#chartContainer {
+  width: 93%;
+  margin: 25px auto;
+  padding: 28px;
+
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08);
+
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Título moderno */
+#chartContainer h4 {
+  margin: 0 0 14px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+  letter-spacing: -0.5px;
+}
+
+/* Lienzo estable sin estirarse infinito */
+#graficaPHMR {
+  width: 100% !important;
+  max-height: 480px !important;
+  margin-bottom: 15px;
+
+  background: rgba(255,255,255,0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+}
+
+/* =============================================
+   🧊 TARJETAS DE INFORMACIÓN (panelInfoPHMR)
+   ============================================= */
+#panelInfoPHMR {
+  margin-top: 18px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+#panelInfoPHMR .infoCard {
+  padding: 16px;
+  border-radius: 16px;
+
+  background: rgba(255,255,255,0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+
+  text-align: center;
+  font-size: 14px;
+  color: #374151;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#panelInfoPHMR .infoCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 26px rgba(0,0,0,0.12);
+}
+
+#panelInfoPHMR .infoCard strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* Pequeña animación de entrada */
+@keyframes fadeIn {
+  from { opacity:0; transform: translateY(10px); }
+  to { opacity:1; transform: translateY(0); }
+}
+
+
+
+/* ============================================================
+   📱 RESPONSIVE
+============================================================ */
+@media (max-width: 1100px) {
+  #panel,
+  .panel-table {
+    width: 95%;
+  }
+
+  #map {
+    height: 50vh;
+  }
+}

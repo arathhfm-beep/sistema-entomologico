@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Plataforma Estatal de Monitoreo Entomológico</title>
+
+<style>
+/* GENERAL */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: "Inter", sans-serif; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  transition: background 0.4s, color 0.4s;
+}
+
+/* LIGHT / DARK THEME */
+:root {
+  --bg: #f2f4f7;
+  --panel: rgba(255,255,255,0.55);
+  --text: #222;
+  --btn: #4a6cf7;
+  --btn-hover: #3554d3;
+  --input-bg: rgba(255,255,255,0.65);
+}
+body.dark {
+  --bg: #0e1117;
+  --panel: rgba(30,30,30,0.6);
+  --text: #e4e6eb;
+  --btn: #708dff;
+  --btn-hover: #546cff;
+  --input-bg: rgba(40,40,40,0.7);
+}
+
+/* NAVBAR */
+nav {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 18px 40px;
+  backdrop-filter: blur(14px);
+  background: var(--panel);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.3);
+  transition: background 0.4s;
+}
+nav h2 { font-size: 1.4rem; font-weight: 700; }
+nav button {
+  padding: 10px 18px;
+  background: var(--btn);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  font-size: .9rem;
+  transition: .2s;
+}
+nav button:hover { background: var(--btn-hover); }
+
+/* DARK MODE TOGGLE */
+#darkToggle {
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--panel);
+  margin-left: 12px;
+  font-size: 1.2rem;
+  transition: 0.3s;
+}
+#darkToggle:hover { background: rgba(255,255,255,0.75); }
+
+/* SECTIONS */
+section {
+  width: 100%;
+  min-height: 100vh;
+  padding: 120px 60px 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 70px;
+  opacity: 0;
+  transform: translateY(40px);
+  animation: fadeSlide 1s forwards;
+}
+section.reverse { flex-direction: row-reverse; }
+
+@media(max-width: 900px) {
+  section,
+  section.reverse {
+    flex-direction: column !important;
+    text-align: center;
+  }
+  .text-block { max-width: 100%; }
+  .img-block { width: 100%; height: 50vh; }
+}
+
+@keyframes fadeSlide {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.text-block { max-width: 50%; }
+
+.text-block h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.text-block .subtitle {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.text-block p { font-size: 1.15rem; line-height: 1.7rem; margin-bottom: 26px; opacity: .9; }
+
+.btn-main {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--btn);
+  color: #fff;
+  text-decoration: none;
+  display: inline-block;
+  transition: 0.3s;
+}
+.btn-main:hover {
+  background: var(--btn-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+}
+
+.img-block {
+  width: 45%;
+  height: 60vh;
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+}
+.img-block.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+}
+
+.img-block.icon img {
+  width: auto;
+  height: auto;
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;   /* ✅ NO SE CORTA */
+  transition: transform 0.4s ease;
+}
+
+.img-block.icon:hover img {
+  transform: scale(1.05);
+}
+.img-block img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.img-block:hover img { transform: scale(1.15); }
+.img-block:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.35); }
+
+/* LOGIN INPUTS */
+.login-input {
+  padding: 12px 14px;
+  width: 300px;
+  border-radius: 10px;
+  border: 1px solid #bbb;
+  margin-bottom: 14px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: 0.3s;
+}
+.login-input:focus {
+  border-color: var(--btn);
+  box-shadow: 0 0 4px var(--btn);
+}
+
+.tabs-container { margin-top: 20px; }
+.tabs-header { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.tab-btn {
+  padding: 10px 22px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0,0,0,0.08);
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+}
+.tab-btn.active {
+  background: var(--btn);
+  color: white;
+}
+.tab-content { display: none; animation: fadeTab 0.3s ease; }
+.tab-content.active { display: block; }
+@keyframes fadeTab { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.alt { background: rgba(255,255,255,0.04); }
+
+@media (max-width: 900px) {
+
+  /* NAVBAR */
+  nav {
+    padding: 14px 18px;
+  }
+
+  nav h2 {
+    font-size: 1.05rem;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  /* SECTIONS */
+  section {
+    min-height: auto;              /* 🔑 clave: permite scroll */
+    padding: 110px 20px 60px;
+    gap: 40px;
+  }
+
+  section,
+  section.reverse {
+    flex-direction: column !important;
+    text-align: center;
+  }
+
+  .text-block {
+    max-width: 100%;
+  }
+
+  .text-block h1 {
+    font-size: 2.2rem;
+    justify-content: center;
+  }
+
+  .text-block p {
+    font-size: 1rem;
+    line-height: 1.6rem;
+  }
+
+  /* LOGIN */
+  .login-input {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .btn-main {
+    width: 100%;
+  }
+
+  /* IMÁGENES */
+  .img-block {
+    width: 100%;
+    height: 38vh;                  /* antes 60vh */
+  }
+
+  .img-block.icon img {
+    max-width: 65%;
+    max-height: 65%;
+  }
+}
+
+/* 📱 TELÉFONOS PEQUEÑOS */
+@media (max-width: 480px) {
+
+  .text-block h1 {
+    font-size: 1.9rem;
+  }
+
+  .img-block {
+    height: 32vh;
+  }
+
+  nav h2 {
+    font-size: 0.95rem;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAV -->
+<nav>
+  <h2>Plataforma Estatal de Monitoreo Entomológico</h2>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div id="darkToggle">🌙</div>
+  </div>
+</nav>
+
+<!-- DASHBOARDS -->
+
+<section class="alt">
+  <div class="text-block">
+    <h1>PHMR <span class="icon">📊</span></h1>
+    <p class="subtitle">Mapeo semanal de riesgo poblacional de Aedes aegypti.</p>
+    <p>Analiza el comportamiento de mosquitos a nivel manzana y colonia. Genera mapas de riesgo y detecta anomalías tempranas.</p>
+    <a href="/dashboard/phmr.html" class="btn-main">Abrir PHMR</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/1018/1018767.png " alt="Análisis geoespacial de mosquitos">
+  </div>
+</section>
+
+<section class="alt reverse">
+  <div class="text-block">
+    <h1>Jurisdicción <span class="icon">🗺️</span></h1>
+    <p class="subtitle">Monitoreo vectorial a nivel jurisdiccional.</p>
+    <p>Visualiza densidad vectorial, riesgos y tendencias, permitiendo priorizar acciones de control en áreas críticas.</p>
+    <a href="/dashboard/jurisdiccion.html" class="btn-main">Abrir Jurisdicción</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/855/855003.png" alt="Jurisdicción sanitaria">
+  </div>
+</section>
+
+<section class="alt">
+  <div class="text-block">
+    <h1>Savana <span class="icon">🌿</span></h1>
+    <p class="subtitle">Dashboard interactivo de vigilancia entomológica.</p>
+    <p>Consulta mapas históricos y actuales, tendencias de infestación y alertas tempranas.</p>
+    <a href="/dashboard/savana.html" class="btn-main">Abrir Savana</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/4479/4479783.png" alt="Mapas y análisis entomológico">
+  </div>
+</section>
+
+<section class="alt reverse">
+  <div class="text-block">
+    <h1>Positividad Larvaria <span class="icon">🦟</span></h1>
+    <p class="subtitle">Análisis cartográfico de muestras positivas.</p>
+    <p>Evalúa patrones de transmisión y detecta focos de riesgo por municipio, sector y manzana.</p>
+    <a href="/dashboard/positividad.html" class="btn-main">Abrir Positividad</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/4843/4843932.png" alt="Larvas de mosquito bajo microscopio">
+  </div>
+</section>
+
+<section class="alt">
+  <div class="text-block">
+    <h1>Nebulización <span class="icon">💨</span></h1>
+    <p class="subtitle">Cobertura de control químico vectorial.</p>
+    <p>Visualiza trayectoria de fumigación y prioriza zonas de alto riesgo epidemiológico.</p>
+    <a href="/dashboard/nebulizacion.html" class="btn-main">Abrir Nebulización</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/5609/5609092.png" alt="Nebulización y control vectorial">
+  </div>
+</section>
+
+<section class="alt reverse">
+  <div class="text-block">
+    <h1>Sistema SEGBN <span class="icon">⚙️</span></h1>
+    <p class="subtitle">Motor predictivo integrado.</p>
+    <p>Integra PHMR y datos de entomología para identificar manzanas prioritarias, optimizando recursos y fortaleciendo la toma de decisiones.</p>
+    <a href="/dashboard/sistemanebu.html" class="btn-main">Abrir Sistema SEGBN</a>
+  </div>
+  <div class="img-block icon">
+    <img src="https://cdn-icons-png.flaticon.com/512/4365/4365231.png" alt="Análisis predictivo y mapas">
+  </div>
+</section>
+
+<script src="app.js"></script>
+
+</body>
+</html>
