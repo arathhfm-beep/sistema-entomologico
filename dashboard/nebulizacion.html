@@ -8,15 +8,16 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css">
 
-  <!-- GOOGLE FONT -->
+  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
 
+  <!-- Estilos -->
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-  <!-- Header moderno -->
+  <!-- Header -->
   <div id="header">
     <h1 id="tituloPrincipal">Mapa de Nebulización</h1>
   </div>
@@ -27,19 +28,20 @@
       <label>Jurisdicción:</label><br>
       <select id="jurisdiccionSelect">
         <option value="">Todas</option>
-        <option value="1">1</option><option value="2">2</option>
-        <option value="3">3</option><option value="4">4</option>
-        <option value="5">5</option><option value="6">6</option>
-        <option value="7">7</option><option value="8">8</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+        <option value="8">8</option>
       </select>
     </div>
 
     <div class="control-card">
       <label>Municipio:</label><br>
-      <select id="municipioSelect">
-        <option value="">Todos</option>
-        <option value="39">39</option>
-        <option value="40">40</option>
+      <select id="municipioSelect" disabled>
       </select>
     </div>
 
@@ -50,57 +52,63 @@
     </div>
   </div>
 
+  <!-- Contenido principal -->
   <main class="container">
-     <!-- Mapa -->
 
-   <section class="card">
+    <!-- Mapa -->
+    <section class="card">
       <div id="map"></div>
-  </section>
+    </section>
 
-  <!-- Tabla de resumen -->
-  <div id="tablaContainer" class="panel-table">
-    <h4>Resumen de Lotes Usados</h4>
-    <table id="tablaLotes" class="tablaPHMR">
-      <thead>
-        <tr>
-          <th>Lote</th>
-          <th>Insecticida</th>
-          <th>Total Usado</th>
-          <th>Usos</th>
-          <th>Semanas</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
+    <!-- Tabla -->
+    <div id="tablaContainer" class="panel-table">
+      <h4>Resumen de Lotes Usados</h4>
+      <table id="tablaLotes" class="tablaPHMR">
+        <thead>
+          <tr>
+            <th>Lote</th>
+            <th>Insecticida</th>
+            <th>Total Usado</th>
+            <th>Usos</th>
+            <th>Semanas</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
   </main>
- 
-  <!-- Scripts -->
+
+  <!-- Alerta -->
+  <div id="alertaDatos" style="
+    display:none;
+    position:absolute;
+    top:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#ff4d4d;
+    color:white;
+    padding:12px 20px;
+    border-radius:6px;
+    font-weight:bold;
+    box-shadow:0 3px 8px rgba(0,0,0,0.25);
+    z-index:9999;
+    font-size:15px;
+    max-width:80%;
+    text-align:center;
+  ">
+    No hay datos para este municipio en la semana seleccionada
+  </div>
+
+  <!-- Librerías -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Tu JS -->
   <script src="https://arathhfm-beep.github.io/sistema-entomologico/script/nebulizacion.js"></script>
- 
 
 </body>
-<div id="alertaDatos" style="
-  display:none;
-  position:absolute;
-  top:20px;
-  left:50%;
-  transform:translateX(-50%);
-  background:#ff4d4d;
-  color:white;
-  padding:12px 20px;
-  border-radius:6px;
-  font-weight:bold;
-  box-shadow:0 3px 8px rgba(0,0,0,0.25);
-  z-index:9999;
-  font-size:15px;
-  max-width:80%;
-  text-align:center;
-">
-  No hay datos para este municipio en la semana seleccionada
-</div>
 </html>
