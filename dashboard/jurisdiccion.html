@@ -224,15 +224,34 @@ function renderCasos(lista) {
 }
 
 function calcularKPIs(lista) {
-  const hoy = new Date().toISOString().slice(0,10);
-  const conf = lista.filter(c=>c.estatus_caso==="CONFIRMADO");
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const ayerStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
-  kpiConfirmados.textContent = conf.length;
-  kpiProbablesHoy.textContent = lista.filter(c=>c.estatus_caso==="PROBABLE" && c.fec_captura?.startsWith(hoy)).length;
-  kpiPendientes.textContent = lista.filter(c=>!c.manzana || !c.sector).length;
-  kpiGrave.textContent = conf.filter(c=>c.diagnostico_final?.includes("GRAVE")).length;
-  kpiSignos.textContent = conf.filter(c=>c.diagnostico_final?.includes("SIGNOS")).length;
-  kpiNgrave.textContent = conf.filter(c=>c.diagnostico_final?.includes("NO GRAVE")).length;
+  const confirmados = lista.filter(c => c.estatus_caso === "CONFIRMADO");
+
+  kpiConfirmados.textContent = confirmados.length;
+
+  // ✅ PROBABLES (AYER + HOY)
+  kpiProbablesHoy.textContent = lista.filter(c =>
+    c.estatus_caso === "PROBABLE" &&
+    (c.fec_captura === hoyStr || c.fec_captura === ayerStr)
+  ).length;
+
+  kpiPendientes.textContent = lista.filter(c =>
+    !c.manzana || !c.sector
+  ).length;
+
+  kpiGrave.textContent = confirmados.filter(c =>
+    c.diagnostico_final?.includes("DENGUE GRAVE")
+  ).length;
+
+  kpiSignos.textContent = confirmados.filter(c =>
+    c.diagnostico_final?.includes("DENGUE CON SIGNOS DE ALARMA")
+  ).length;
+
+  kpiNgrave.textContent = confirmados.filter(c =>
+    c.diagnostico_final?.includes("DENGUE NO GRAVE")
+  ).length;
 }
 
 async function guardarSeguimiento(folio) {
