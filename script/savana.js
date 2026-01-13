@@ -118,23 +118,22 @@ async function cargarKPIs(municipio) {
     // ===========================
     // 3️⃣ Probables (solo ayer y hoy)
     // ===========================
-    let queryProbables = supa
-      .from("v_public_casos_jurisdiccion")
-      .select("fec_captura")
-      .eq("estatus_caso", "PROBABLE");
+    const hoyISO = new Date().toISOString().split("T")[0];
+const ayerISO = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
-    if (municipio) queryProbables = queryProbables.eq("cve_mpo_res", municipio);
+let queryProbables = supa
+  .from("v_public_casos_jurisdiccion")
+  .select("*", { count: "exact", head: true })
+  .eq("estatus_caso", "PROBABLE")
+  .gte("fec_captura", ayerISO)
+  .lte("fec_captura", hoyISO);
 
-    let { data: probables, error: errProb } = await queryProbables;
-    if (errProb) throw errProb;
-    if (!probables) probables = [];
+if (municipio) queryProbables = queryProbables.eq("cve_mpo_res", municipio);
 
-    const probablesHoyAyer = probables.filter(r => {
-      const f = new Date(r.fec_captura);
-      return f.toDateString() === hoy.toDateString() || f.toDateString() === ayer.toDateString();
-    });
+const { count: probables, error: errProb } = await queryProbables;
+if (errProb) throw errProb;
 
-    kpiPendientes.textContent = probablesHoyAyer.length;
+kpiPendientes.textContent = probables || 0;
 
   } catch (e) {
     console.error("Error KPIs:", e);
