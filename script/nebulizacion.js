@@ -185,10 +185,11 @@ async function cargarTablaLotes() {
     .select("*");
 
   if (jurisdiccion) query = query.eq("jurisdiccion", jurisdiccion);
+  
 
   const { data, error } = await query;
   if (error) return;
-
+  
   const tbody = document.querySelector("#tablaLotes tbody");
   tbody.innerHTML = "";
 

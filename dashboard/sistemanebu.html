@@ -76,7 +76,6 @@
       <tr>
         <th>Bunche</th>
         <th>Riesgo</th>
-        <th>Secciones</th>
         <th>Color</th>
       </tr>
     </thead>
@@ -213,7 +212,6 @@ function actualizarTabla(bunches) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${b.bunche_id}</td>
-      <td>—</td>
       <td><strong>${Number(b.riesgo_total).toFixed(1)}</strong></td>
       <td>${b.ranking}</td>
       <td>

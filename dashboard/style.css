@@ -290,7 +290,20 @@ body {
   text-align: center;
   letter-spacing: -0.5px;
 }
+.legend {
+  background: white;
+  padding: 8px;
+  line-height: 18px;
+  font-size: 12px;
+}
 
+.legend i {
+  width: 14px;
+  height: 14px;
+  float: left;
+  margin-right: 6px;
+  opacity: 0.9;
+}
 /* Lienzo estable sin estirarse infinito */
 #graficaPHMR {
   width: 100% !important;
