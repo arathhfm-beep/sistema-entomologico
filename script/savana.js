@@ -210,8 +210,8 @@ async function cargarTreemapCasos() {
     const container = document.getElementById("treemapMunicipios");
     container.innerHTML = "";
 
-    const filteredData = rows.filter(d => (d.confirmados ?? 0) >= 3);
-
+    const filteredData = rows.filter(d => (d.confirmados ?? 0) >= 1);
+    
     const data = {
       name: "Nuevo León",
       children: filteredData.map(d => ({
