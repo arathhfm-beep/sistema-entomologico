@@ -1,7 +1,3 @@
-const SUPABASE_URL = 'https://dttmexasjpwdlnbikijx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ';
-const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 let map = L.map('map').setView([25.7, -100.3], 10);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
@@ -11,79 +7,74 @@ async function cargarPositividad() {
   const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
   const municipio   = document.getElementById("municipioSelect").value;
   const semana      = document.getElementById("semanaSelect").value;
+  const token       = sessionStorage.getItem("token_entomo");
 
   if (!jurisdiccion || !municipio || !semana) {
-    alert("Debe seleccionar jurisdicción, municipio y semana.");
+    mostrarAlerta("Debe seleccionar jurisdicción, municipio y semana.");
     return;
   }
 
-  let query = supa
-    .from("v_positividad_manzana_geo")
-    .select("*")
-    .lte("semana", semana)
-    .eq("jurisdiccion", jurisdiccion)
-    .eq("municipio", municipio);
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error Supabase:", error);
-    alert("Error al cargar positividad");
-    return;
-  }
-
-  // === Convertir a GeoJSON ===
-  const geojson = {
-    type: "FeatureCollection",
-    features: data.map(r => ({
-      type: "Feature",
-      geometry: r.geometry,
-      properties: {
-        jurisdiccion: r.jurisdiccion,
-        municipio: r.municipio,
-        seccion: r.seccion,
-        manzana: r.manzana,
-        positividad: Number(r.positividad),
-        semana: r.semana
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/positividad-geo",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+        },
+        body: JSON.stringify({
+          token,
+          jurisdiccion,
+          municipio,
+          semana
+        })
       }
-    }))
-  };
+    );
 
-  if (capaPositividad) map.removeLayer(capaPositividad);
+    const r = await res.json();
 
-  capaPositividad = L.geoJSON(geojson, {
-    style: f => {
-      const v = Number(f.properties.positividad);
+    if (!r.valida) throw r.error;
 
-      let color =
-        v < 1 ? "#2ECC71" :
-        v < 3 ? "#F1C40F" :
-        v < 5 ? "#E67E22" :
-                "#E74C3C";
+    if (capaPositividad) map.removeLayer(capaPositividad);
 
-      return {
-        color: "#333",
-        weight: 1,
-        fillColor: color,
-        fillOpacity: 0.7
-      };
-    },
-    onEachFeature: (f, layer) => {
-      const p = f.properties;
-      layer.bindTooltip(
-        `Juris: ${p.jurisdiccion}<br>
-         Mpio: ${p.municipio}<br>
-         Sec: ${p.seccion}<br>
-         Mza: ${p.manzana}<br>
-         Positividad: ${p.positividad}`
-      );
+    capaPositividad = L.geoJSON(r.geojson, {
+      style: f => {
+        const v = Number(f.properties.positividad);
+        return {
+          color: "#333",
+          weight: 1,
+          fillOpacity: 0.7,
+          fillColor:
+            v < 1 ? "#2ECC71" :
+            v < 3 ? "#F1C40F" :
+            v < 5 ? "#E67E22" :
+                    "#E74C3C"
+        };
+      },
+      onEachFeature: (f, layer) => {
+        const p = f.properties;
+        layer.bindTooltip(`
+          Juris: ${p.jurisdiccion}<br>
+          Mpio: ${p.municipio}<br>
+          Sec: ${p.seccion}<br>
+          Mza: ${p.manzana}<br>
+          Positividad: ${p.positividad}
+        `);
+      }
+    }).addTo(map);
+
+    if (r.geojson.features.length) {
+      map.fitBounds(capaPositividad.getBounds());
     }
-  }).addTo(map);
 
-  if (geojson.features.length > 0) {
-    map.fitBounds(capaPositividad.getBounds());
+  } catch (e) {
+    console.error("Error positividad:", e);
+    mostrarAlerta("Error al cargar positividad");
   }
 }
+
 const leyendaPositividad = L.control({ position: "bottomright" });
 
 leyendaPositividad.onAdd = function () {
@@ -125,57 +116,73 @@ function obtenerNombreMunicipio(jurisdiccion, municipioId) {
 
 async function cargarTablaActividades(jurisdiccion) {
   const tbody = document.getElementById("tablaActividadesBody");
+  const token = sessionStorage.getItem("token_entomo");
 
   if (!jurisdiccion) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center;padding:12px;">
+        <td colspan="6" style="text-align:center;padding:12px;">
           Seleccione jurisdicción para ver actividades.
         </td>
       </tr>`;
     return;
   }
 
-  const { data, error } = await supa
-    .from("v_positividad_tabla_final")
-    .select("*")
-    .eq("jurisdiccion", jurisdiccion);
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/positividad-tabla",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer TU_ANON_KEY",
+          "apikey": "TU_ANON_KEY"
+        },
+        body: JSON.stringify({
+          token,
+          jurisdiccion
+        })
+      }
+    );
 
-  if (error) {
-    console.error("Error tabla:", error);
+    const r = await res.json();
+
+    if (!r.valida) throw r.error;
+
+    tbody.innerHTML = "";
+
+    if (!r.data || r.data.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center;padding:12px;">
+            No hay actividades registradas.
+          </td>
+        </tr>`;
+      return;
+    }
+
+    r.data.forEach(reg => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${obtenerNombreMunicipio(jurisdiccion, reg.municipio)}</td>
+        <td>${reg.seccion}</td>
+        <td>${reg.positividad_encuesta ?? "N/A"}</td>
+        <td>${reg.positividad_verificacion ?? "N/A"}</td>
+        <td>${reg.semana_encuesta ?? "N/A"}</td>
+        <td>${reg.semana_verificacion ?? "N/A"}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (e) {
+    console.error("Error tabla positividad:", e);
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align:center;color:red;">
+        <td colspan="6" style="text-align:center;color:red;">
           Error al cargar actividades.
         </td>
       </tr>`;
-    return;
   }
-
-  tbody.innerHTML = "";
-
-  if (!data.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" style="text-align:center;padding:12px;">
-          No hay actividades registradas.
-        </td>
-      </tr>`;
-    return;
-  }
-
-  data.forEach(reg => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${obtenerNombreMunicipio(jurisdiccion, reg.municipio)}</td>
-      <td>${reg.seccion}</td>
-      <td>${reg.positividad_encuesta ?? "N/A"}</td>
-      <td>${reg.positividad_verificacion ?? "N/A"}</td>
-      <td>${reg.semana_encuesta ?? "N/A"}</td>
-      <td>${reg.semana_verificacion ?? "N/A"}</td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
 

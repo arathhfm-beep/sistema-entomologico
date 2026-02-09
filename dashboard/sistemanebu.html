@@ -88,12 +88,9 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>  
   <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
   <script>
-    const supa = supabase.createClient(
-  "https://dttmexasjpwdlnbikijx.supabase.co",
-  "sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ"
-);
     let map;
     let capaBunches = null;
+    const coloresBunches = {};
 
     /* ------------------------------------------------------------
        1. INICIALIZACIÓN
@@ -139,12 +136,30 @@
     /* ------------------------------------------------------------
        3. CARGAR BUNCHES DESDE EL ENDPOINT
      ------------------------------------------------------------ */
+     function colorAleatorio() {
+  const r = Math.floor(Math.random() * 156) + 50;
+  const g = Math.floor(Math.random() * 156) + 50;
+  const b = Math.floor(Math.random() * 156) + 50;
+  return `rgb(${r}, ${g}, ${b})`;
+}
+function getColorBunche(buncheId) {
+  if (!coloresBunches[buncheId]) {
+    coloresBunches[buncheId] = colorAleatorio();
+  }
+  return coloresBunches[buncheId];
+}
 async function cargarBunches() {
   const jurisdiccion = parseInt(document.getElementById("jurisdiccionSelect").value, 10);
-const municipio = parseInt(document.getElementById("municipioSelect").value, 10); 
+  const municipio = parseInt(document.getElementById("municipioSelect").value, 10);
   const semanaInicio = parseInt(document.getElementById("semanaInicio")?.value);
   const semanaFin = parseInt(document.getElementById("semanaFin")?.value);
   const vehiculos = parseInt(document.getElementById("vehiculos")?.value);
+  const token = sessionStorage.getItem("token_entomo");
+
+  if (isNaN(jurisdiccion) || isNaN(municipio)) {
+    alert("Selecciona jurisdicción y municipio");
+    return;
+  }
 
   if (isNaN(semanaInicio) || isNaN(semanaFin)) {
     alert("Captura semanas válidas");
@@ -155,52 +170,48 @@ const municipio = parseInt(document.getElementById("municipioSelect").value, 10)
     alert("La semana final no puede ser menor");
     return;
   }
-if (isNaN(jurisdiccion)) {
-  alert("Debes seleccionar una jurisdicción");
-  return;
-}
-
-if (isNaN(municipio)) {
-  alert("Debes seleccionar un municipio");
-  return;
-}
-
 
   const semanas = [];
   for (let s = semanaInicio; s <= semanaFin; s++) semanas.push(s);
-console.log({
-  p_jurisdiccion: jurisdiccion,
-  p_municipio: municipio,
-  p_semanas: semanas,
-  p_vehiculos: vehiculos,
-  tipos: {
-    jurisdiccion: typeof jurisdiccion,
-    municipio: typeof municipio
+
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/bunches-priorizados",
+      {
+        method: "POST",
+        headers: {
+           "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+        },
+        body: JSON.stringify({
+          token,
+          jurisdiccion,
+          municipio,
+          semanas,
+          vehiculos
+        })
+      }
+    );
+
+    const r = await res.json();
+    
+    if (!r.valida) throw r.error;
+
+    if (!r.data || r.data.length === 0) {
+      alert("No hay bunches para esos criterios");
+      return;
+    }
+
+    pintarBunches(r.data);
+    actualizarTabla(r.data);
+
+  } catch (e) {
+    console.error("Error bunches:", e);
+    alert("Error al generar bunches");
   }
-});
- 
-
-  const { data, error } = await supa.rpc("get_bunches_priorizados", {
-    p_jurisdiccion: jurisdiccion,
-    p_municipio: municipio,
-    p_semanas: semanas,
-    p_vehiculos: vehiculos
-  });
-
-  if (error) {
-    console.error("RPC error:", error);
-    alert("Error al generar bunches (ver consola)");
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    alert("No hay bunches para esos criterios");
-    return;
-  }
-
-  pintarBunches(data);
-  actualizarTabla(data);
 }
+
     /* ------------------------------------------------------------
        4. TABLA DE BUNCHES
      ------------------------------------------------------------ */
@@ -216,7 +227,7 @@ function actualizarTabla(bunches) {
       <td>${b.ranking}</td>
       <td>
         <span class="color-box"
-          style="background:${getColor(b.ranking)}">
+          style="background:${getColorBunche(b.bunche_id)}">
         </span>
       </td>
     `;
@@ -246,7 +257,7 @@ function pintarBunches(bunches) {
       renderer: L.canvas(),
 
       style: f => ({
-        fillColor: getColor(f.properties.ranking),
+        fillColor: getColorBunche(f.properties.bunche),
         fillOpacity: 0.7,
 
         // sin bordes

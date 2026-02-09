@@ -302,9 +302,17 @@ section.reverse { flex-direction: row-reverse; }
 <!-- NAV -->
 <nav>
   <h2>Plataforma Estatal de Monitoreo Entomológico</h2>
-  <div style="display:flex;align-items:center;gap:10px;">
-    <div id="darkToggle">🌙</div>
-  </div>
+  <div id="loginBox" style="display:flex;gap:8px;align-items:center;">
+  <input
+    id="claveInput"
+    type="password"
+    placeholder="Clave de acceso"
+    style="padding:6px 10px;border-radius:8px;border:1px solid #ccc;"
+  />
+  <button onclick="activarSesion()" class="btn-main">
+    Activar
+  </button>
+</div>  
 </nav>
 
 <!-- DASHBOARDS -->

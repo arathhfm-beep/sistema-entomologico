@@ -1,26 +1,59 @@
+const API_URL = "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1";
 
-document.addEventListener("DOMContentLoaded", () => {
-  const btnGeosis = qs("#conectarBtn");
-  if (btnGeosis) btnGeosis.addEventListener("click", manejarConectar);
-
-  const btnSin = qs("#conectarBtnSin");
-  if (btnSin) btnSin.addEventListener("click", conectarSin);
-
-
-  const darkBtn = qs("#darkToggle");
-  if (darkBtn) {
-    darkBtn.addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-      darkBtn.textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
-    });
-  }
-});
-
-// Tabs
-function showTab(tab) {
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-  document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-  document.getElementById(tab).classList.add("active");
-  if (tab === "geosis") document.querySelectorAll(".tab-btn")[0].classList.add("active");
-  else document.querySelectorAll(".tab-btn")[1].classList.add("active");
+/*************************************************
+ * SESIÓN
+ *************************************************/
+function sesionActiva() {
+  return !!sessionStorage.getItem("token_entomo");
 }
+
+function bloquearLinks() {
+  document.querySelectorAll("a.btn-main").forEach(a => {
+    a.addEventListener("click", e => {
+      if (!sesionActiva()) {
+        e.preventDefault();
+        alert("Debes ingresar la clave para acceder");
+      }
+    });
+  });
+}
+
+function actualizarUI() {
+  if (sesionActiva()) {
+    document.getElementById("loginBox").style.display = "none";
+  }
+}
+
+bloquearLinks();
+actualizarUI();
+
+/*************************************************
+ * ACTIVAR SESIÓN
+ *************************************************/
+async function activarSesion() {
+  const clave = document.getElementById("claveInput").value.trim();
+  if (!clave) return alert("Ingresa la clave");
+
+  const res = await fetch(`${API_URL}/login-plataforma`, {
+    method: "POST",
+    headers: {  "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
+    body: JSON.stringify({ clave })
+  });
+
+  const data = await res.json();
+  console.log(data);
+
+  if (!res.ok || !data.token) {
+    alert("Clave incorrecta");
+    return;
+  }
+
+  sessionStorage.setItem("token_entomo", data.token);
+  alert("Acceso habilitado");
+
+  actualizarUI();
+}
+
+

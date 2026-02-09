@@ -1,11 +1,3 @@
-/* =========================
-   CLIENTE SUPABASE
-========================= */
-const supa = window.supabase.createClient(
-  "https://dttmexasjpwdlnbikijx.supabase.co",
-  "sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ"
-);
-
 const filtroMunicipio = document.getElementById("filtroMunicipio");
 const kpiConfirmados = document.getElementById("kpiConfirmados");
 const kpiPendientes = document.getElementById("kpiPendientes");
@@ -82,140 +74,133 @@ function cargarTodo() {
    KPIs
 ========================= */
 async function cargarKPIs(municipio) {
+  const token = sessionStorage.getItem("token_entomo");
+
+  if (!token) {
+    alert("Sesión inválida");
+    cerrarSesion();
+    return;
+  }
+
   try {
-    const hoy = new Date();
-    const ayer = new Date();
-    ayer.setDate(hoy.getDate() - 1);
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/kpis",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+        },
+        body: JSON.stringify({
+          token,               
+          municipio: municipio || null
+        })
+      }
+    );
 
-    // ===========================
-    // 1️⃣ Confirmados (todos)
-    // ===========================
-    let queryConfirmados = supa
-      .from("v_public_casos_jurisdiccion")
-      .select("*", { count: "exact", head: true })
-      .eq("estatus_caso", "CONFIRMADO");
+    const json = await res.json();
+    if (!res.ok || json.valida === false) {
+      alert("Sesión inválida");
+      cerrarSesion();
+      return;
+    }
 
-    if (municipio) queryConfirmados = queryConfirmados.eq("cve_mpo_res", municipio);
-
-    const { count: confirmados, error: errConfirm } = await queryConfirmados;
-    if (errConfirm) throw errConfirm;
-    kpiConfirmados.textContent = confirmados || 0;
-
-    // ===========================
-    // 2️⃣ Foráneos (todos, cve_estado_res != "19")
-    // ===========================
-    let queryForaneos = supa
-      .from("v_public_casos_jurisdiccion")
-      .select("*", { count: "exact", head: true })
-      .neq("cve_estado_res", "19");
-
-    if (municipio) queryForaneos = queryForaneos.eq("cve_mpo_res", municipio);
-
-    const { count: foraneos, error: errForaneos } = await queryForaneos;
-    if (errForaneos) throw errForaneos;
-    kpiForaneos.textContent = foraneos || 0;
-
-    // ===========================
-    // 3️⃣ Probables (solo ayer y hoy)
-    // ===========================
-    const hoyISO = new Date().toISOString().split("T")[0];
-const ayerISO = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-
-let queryProbables = supa
-  .from("v_public_casos_jurisdiccion")
-  .select("*", { count: "exact", head: true })
-  .eq("estatus_caso", "PROBABLE")
-  .gte("fec_captura", ayerISO)
-  .lte("fec_captura", hoyISO);
-
-if (municipio) queryProbables = queryProbables.eq("cve_mpo_res", municipio);
-
-const { count: probables, error: errProb } = await queryProbables;
-if (errProb) throw errProb;
-
-kpiPendientes.textContent = probables || 0;
+    // =========================
+    // Pintar KPIs
+    // =========================
+    kpiConfirmados.textContent = json.confirmados ?? 0;
+    kpiForaneos.textContent    = json.foraneos ?? 0;
+    kpiPendientes.textContent  = json.probables ?? 0;
 
   } catch (e) {
     console.error("Error KPIs:", e);
-    kpiConfirmados.textContent = kpiPendientes.textContent = kpiForaneos.textContent = kpiDefunciones.textContent = 0;
+    kpiConfirmados.textContent =
+    kpiForaneos.textContent =
+    kpiPendientes.textContent = 0;
   }
 }
-
-
 
 /* =========================
    DONA CLASIFICACION
 ========================= */
 async function cargarClasificacion(municipio) {
+  const token = sessionStorage.getItem("token_entomo");
   try {
-    const { data, error } = await supa
-      .from("v_casos_clasificacion")
-      .select("*"); // traemos todo
-
-    if (error) throw error;
-    if (!data) return;
-
-    // Filtrar por municipio si se pasa
-    let filtrados = municipio 
-      ? data.filter(d => d.cve_mpo_res == municipio) 
-      : data;
-
-    // Si no hay municipio, sumamos por tipo para todo el estado
-    const totals = {
-      "DENGUE GRAVE": 0,
-      "DENGUE NO GRAVE": 0,
-      "DENGUE CON SIGNOS DE ALARMA": 0
-    };
-
-    filtrados.forEach(d => {
-      if (totals.hasOwnProperty(d.diagnostico_final)) {
-        totals[d.diagnostico_final] += Number(d.total);
-      }
+    const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/smooth-responder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
+      body: JSON.stringify({
+        token: token,
+        municipio
+      })
     });
+
+    const r = await res.json();
+    if (!r.valida) throw r.error;
 
     if (chartDona) chartDona.destroy();
 
-    chartDona = new Chart(document.getElementById("donaClasificacion"), {
-      type: "doughnut",
-      data: {
-        labels: ["Dengue grave","Dengue no grave","Dengue con signos de alarma"],
-        datasets: [{
-          data: [
-            totals["DENGUE GRAVE"],
-            totals["DENGUE NO GRAVE"],
-            totals["DENGUE CON SIGNOS DE ALARMA"]
+    chartDona = new Chart(
+      document.getElementById("donaClasificacion"),
+      {
+        type: "doughnut",
+        data: {
+          labels: [
+            "Dengue grave",
+            "Dengue no grave",
+            "Dengue con signos de alarma"
           ],
-          backgroundColor: ["#ef4444","#facc15","#3b82f6"]
-        }]
-      },
-      options: { responsive:true, plugins:{legend:{position:"bottom"}} }
-    });
+          datasets: [{
+            data: [
+              r.dengue_grave,
+              r.dengue_no_grave,
+              r.dengue_signos
+            ],
+            backgroundColor: ["#ef4444", "#facc15", "#3b82f6"]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } }
+        }
+      }
+    );
 
-  } catch(e) {
+  } catch (e) {
     console.error("Error Dona:", e);
   }
 }
+
 
 /* =========================
    TREEMAP MUNICIPIOS
 ========================= */
 async function cargarTreemapCasos() {
+  const token = sessionStorage.getItem("token_entomo");
   try {
-    const { data: rows, error } = await supa
-      .from("v_casos_por_municipio")
-      .select("*");
-    if (error) throw error;
-    if (!rows) return;
+    const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/treemap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
+      body: JSON.stringify({
+        token: token
+      })
+    });
+
+    const r = await res.json();
+    if (!r.valida) throw r.error;
 
     const container = document.getElementById("treemapMunicipios");
     container.innerHTML = "";
 
-    const filteredData = rows.filter(d => (d.confirmados ?? 0) >= 1);
-    
     const data = {
       name: "Nuevo León",
-      children: filteredData.map(d => ({
-        name: MUNICIPIOS[d.cve_mpo_res]?.nombre || `${d.cve_mpo_res}`,
+      children: r.municipios.map(d => ({
+        name: MUNICIPIOS[d.cve_mpo_res]?.nombre || d.cve_mpo_res,
         value: Number(d.confirmados) || 0
       }))
     };
@@ -226,58 +211,67 @@ async function cargarTreemapCasos() {
       .style("font-family", "Inter, sans-serif");
 
     const maxValue = d3.max(data.children, d => d.value) || 1;
-    const color = d3.scaleSequential().domain([0, maxValue]).interpolator(d3.interpolateYlOrRd);
+    const color = d3.scaleSequential()
+      .domain([0, maxValue])
+      .interpolator(d3.interpolateYlOrRd);
 
-    const root = d3.hierarchy(data).sum(d => d.value).sort((a,b)=>b.value-a.value);
-    d3.treemap().size([container.clientWidth, container.clientHeight]).padding(6)(root);
+    const root = d3.hierarchy(data)
+      .sum(d => d.value)
+      .sort((a, b) => b.value - a.value);
 
-    const node = svg.selectAll("g").data(root.leaves()).join("g")
+    d3.treemap()
+      .size([container.clientWidth, container.clientHeight])
+      .padding(6)(root);
+
+    const node = svg.selectAll("g")
+      .data(root.leaves())
+      .join("g")
       .attr("transform", d => `translate(${d.x0},${d.y0})`);
 
     // Rectángulos
     node.append("rect")
       .attr("width", d => d.x1 - d.x0)
       .attr("height", d => d.y1 - d.y0)
-      .attr("rx", 10).attr("ry", 10)
+      .attr("rx", 10)
+      .attr("ry", 10)
       .attr("fill", d => color(d.value));
 
-    // Número de casos detrás
+    // Número de casos
     node.append("text")
-      .attr("class", "cases-bg")
-      .attr("x", d => (d.x1 - d.x0)/2)
-      .attr("y", d => (d.y1 - d.y0)/2)
+      .attr("x", d => (d.x1 - d.x0) / 2)
+      .attr("y", d => (d.y1 - d.y0) / 2)
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .style("fill", "#000")
       .style("opacity", 0.15)
       .style("font-weight", "bold")
-      .style("font-size", d => Math.min((d.x1 - d.x0)/1.5, (d.y1 - d.y0)/1.5) + "px")
+      .style("font-size", d =>
+        Math.min((d.x1 - d.x0) / 1.5, (d.y1 - d.y0) / 1.5) + "px"
+      )
       .text(d => d.value);
 
-    // Nombre del municipio con ajuste de tamaño y truncamiento
+    // Nombre municipio
     node.append("text")
-      .attr("class", "label")
-      .attr("x", d => (d.x1 - d.x0)/2)
-      .attr("y", d => (d.y1 - d.y0)/2)
+      .attr("x", d => (d.x1 - d.x0) / 2)
+      .attr("y", d => (d.y1 - d.y0) / 2)
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .style("fill", "#000")
       .style("font-weight", "bold")
       .text(d => d.data.name)
-      .each(function(d) {
+      .each(function (d) {
         const text = d3.select(this);
-        let width = d.x1 - d.x0 - 4; // margen pequeño
-        let fontSize = parseInt(text.style("font-size"));
-        while (text.node().getComputedTextLength() > width && fontSize > 6) {
-          fontSize -= 1;
+        let width = d.x1 - d.x0 - 6;
+        let fontSize = 14;
+        while (this.getComputedTextLength() > width && fontSize > 7) {
+          fontSize--;
           text.style("font-size", fontSize + "px");
         }
       });
 
-  } catch(e){ 
-    console.error("Error Treemap:", e); 
+  } catch (e) {
+    console.error("Error Treemap:", e);
   }
 }
+
 
 
 
@@ -285,91 +279,108 @@ async function cargarTreemapCasos() {
    CASOS VS PHMR
 ========================= */
 async function cargarCasosVsPhmr(municipio) {
+  const token = sessionStorage.getItem("token_entomo");
   try {
-    // Traemos todos los datos de la vista semanal
-    const { data, error } = await supa
-      .from("v_casos_vs_phmr_semanal")
-      .select("*")
-      .order("semana");
-    if (error) throw error;
-    if (!data) return;
-
-    let filtrados;
-
-    if (municipio) {
-      // Filtramos por municipio si se selecciona
-      filtrados = data.filter(r => r.cve_mpo_res == municipio);
-    } else {
-      // Si no hay municipio, agregamos por semana los promedios del estado
-      const semanas = [...new Set(data.map(d => d.semana))]; // todas las semanas
-      filtrados = semanas.map(s => {
-        const porSemana = data.filter(d => d.semana === s);
-        const casos_confirmados = porSemana.reduce((sum, d) => sum + Number(d.casos_confirmados), 0);
-        const casos_probables  = porSemana.reduce((sum, d) => sum + Number(d.casos_probables), 0);
-        const phmr = porSemana.length
-          ? porSemana.reduce((sum, d) => sum + Number(d.phmr), 0) / porSemana.length
-          : 0;
-        return {
-          semana: s,
-          casos_confirmados,
-          casos_probables,
-          phmr: Number(phmr.toFixed(2))
-        };
-      });
-    }
-
-    // Destruimos la gráfica anterior si existe
-    if (chartLineas) chartLineas.destroy();
-
-    // Creamos la gráfica
-    chartLineas = new Chart(document.getElementById("graficaCasos"), {
-      type: "line",
-      data: {
-        labels: filtrados.map(d => `Sem ${d.semana}`),
-        datasets: [
-          { label: "Casos confirmados", data: filtrados.map(d => d.casos_confirmados), borderColor:"#ef4444", fill:false },
-          { label: "Casos probables",   data: filtrados.map(d => d.casos_probables),  borderColor:"#f59e0b", fill:false },
-          { label: "PHMR",              data: filtrados.map(d => d.phmr),             borderColor:"#3b82f6", fill:false }
-        ]
-      },
-      options:{responsive:true, plugins:{legend:{position:"bottom"}}}
+    const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/cvsp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
+      body: JSON.stringify({
+        token: token,
+        municipio
+      })
     });
 
-  } catch(e){ 
-    console.error("Error PHMR:", e); 
+    const r = await res.json();
+    if (!r.valida) throw r.error;
+
+    const datos = r.series;
+
+    if (chartLineas) chartLineas.destroy();
+
+    chartLineas = new Chart(
+      document.getElementById("graficaCasos"),
+      {
+        type: "line",
+        data: {
+          labels: datos.map(d => `Sem ${d.semana}`),
+          datasets: [
+            {
+              label: "Casos confirmados",
+              data: datos.map(d => d.casos_confirmados),
+              borderColor: "#ef4444",
+              fill: false
+            },
+            {
+              label: "Casos probables",
+              data: datos.map(d => d.casos_probables),
+              borderColor: "#f59e0b",
+              fill: false
+            },
+            {
+              label: "PHMR",
+              data: datos.map(d => d.phmr),
+              borderColor: "#3b82f6",
+              fill: false,
+              yAxisID: "y1"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: "bottom" } },
+          scales: {
+            y1: {
+              position: "right",
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      }
+    );
+
+  } catch (e) {
+    console.error("Error PHMR:", e);
   }
 }
+
 
 /* =========================
    HEATMAP
 ========================= */
-async function cargarMapa(municipio, capa="confirmados") {
+async function cargarMapa(municipio, capa = "confirmados") {
   if (capaManzanas) map.removeLayer(capaManzanas);
-
-  const viewName = capa === "probables" ? "v_heat_probable" : "v_heat_confirmados";
-
+  const token = sessionStorage.getItem("token_entomo");
   try {
-    const { data, error } = await supa.from(viewName).select("*");
-    if (error) throw error;
-    if (!data) return;
+    const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/heatmapcasos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
+      body: JSON.stringify({
+        token: token,
+        municipio,
+        capa
+      })
+    });
 
-    const filtrados = municipio ? data.filter(r => r.municipio == municipio) : data;
+    const r = await res.json();
+    if (!r.valida) throw r.error;
 
-    const geojson = {
-      type: "FeatureCollection",
-      features: filtrados.map(r => ({
-        type: "Feature",
-        geometry: r.geojson,
-        properties: { casos: r.casos }
-      }))
-    };
-
-    capaManzanas = L.geoJSON(geojson, {
-      style: f => ({ fillColor: getColor(f.properties.casos), weight:0.5, fillOpacity:0.6 }),
-      onEachFeature: (f,l)=>l.bindPopup(`Casos: ${f.properties.casos}`)
+    capaManzanas = L.geoJSON(r.geojson, {
+      style: f => ({
+        fillColor: getColor(f.properties.casos),
+        weight: 0.5,
+        fillOpacity: 0.6
+      }),
+      onEachFeature: (f, l) =>
+        l.bindPopup(`Casos: ${f.properties.casos}`)
     }).addTo(map);
 
-  } catch(e){ console.error("Error Heatmap:", e); }
+  } catch (e) {
+    console.error("Error Heatmap:", e);
+  }
 }
 
 function getColor(c){

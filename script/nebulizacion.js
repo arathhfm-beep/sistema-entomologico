@@ -1,18 +1,10 @@
 /*************************************************
- * CONFIGURACIÓN SUPABASE
- *************************************************/
-const SUPABASE_URL = "https://dttmexasjpwdlnbikijx.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ";
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-/*************************************************
  * VARIABLES GLOBALES
  *************************************************/
 let map, capaFumigaciones, capaLeyenda;
 let semanaActual = 1;
-let windowLayers = [];
 let firstLoadCenter = false;
+let requestFumigacionesId = 0;
 
 
 /*************************************************
@@ -95,59 +87,74 @@ function mostrarAlerta(msg) {
 async function cargarFumigaciones() {
   const municipio = document.getElementById("municipioSelect").value || null;
   const jurisdiccion = document.getElementById("jurisdiccionSelect").value || null;
+  const token = sessionStorage.getItem("token_entomo");
 
+  // 🔐 Generar ID único de esta llamada
+  const myRequestId = ++requestFumigacionesId;
+
+  // 🧹 Limpiar capa anterior
   if (capaFumigaciones) {
     map.removeLayer(capaFumigaciones);
     capaFumigaciones = null;
   }
 
-  let query = supabaseClient
-    .from("vw_fumigaciones_estado")
-    .select("geom, insecticida, manzana, municipio, jurisdiccion")
-    .eq("semana", semanaActual);
-
-  if (municipio) query = query.eq("municipio", municipio);
-  if (jurisdiccion) query = query.eq("jurisdiccion", jurisdiccion);
-
-  const { data, error } = await query;
-
-  if (error || !data || data.length === 0) {
-    mostrarAlerta("No hay datos para la semana seleccionada");
-    return;
-  }
-
-  const geojson = {
-    type: "FeatureCollection",
-    features: data.map(r => ({
-      type: "Feature",
-      geometry: r.geom,
-      properties: {
-        insecticida: r.insecticida,
-        manzana: r.manzana
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/smart-service",
+      {
+        method: "POST",
+        headers: {
+         "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+        },
+        body: JSON.stringify({
+          token,
+          semana: semanaActual,
+          municipio,
+          jurisdiccion
+        })
       }
-    }))
-  };
+    );
 
-  capaFumigaciones = L.geoJSON(geojson, {
-    renderer: L.canvas(),
-    style: f => ({
-      color: "#222",
-      weight: 0.4,
-      fillOpacity: 0.6,
-      fillColor: colorPorInsecticida(f.properties.insecticida)
-    }),
-    onEachFeature: (f, layer) => {
-      layer.bindTooltip(
-        `Manzana: ${f.properties.manzana}<br>${f.properties.insecticida}`
-      );
+    const r = await res.json();
+
+    // ❌ Si ya hubo otra llamada después, ignorar esta
+    if (myRequestId !== requestFumigacionesId) return;
+
+    if (!r.valida) throw r.error;
+
+    if (!r.geojson || !r.geojson.features?.length) {
+      mostrarAlerta("No hay datos para la semana seleccionada");
+      return;
     }
-  }).addTo(map);
 
-  if (!firstLoadCenter) {
-    map.fitBounds(capaFumigaciones.getBounds(), { padding: [20, 20] });
-    firstLoadCenter = true;
+    capaFumigaciones = L.geoJSON(r.geojson, {
+      renderer: L.canvas(),
+      style: f => ({
+        color: "#222",
+        weight: 0.4,
+        fillOpacity: 0.6,
+        fillColor: colorPorInsecticida(f.properties.insecticida)
+      }),
+      onEachFeature: (f, layer) => {
+        layer.bindTooltip(
+          `Sección: ${f.properties.seccion}<br>${f.properties.insecticida}`
+        );
+      }
+    }).addTo(map);
+
+    if (!firstLoadCenter && capaFumigaciones.getBounds().isValid()) {
+      map.fitBounds(capaFumigaciones.getBounds(), { padding: [20, 20] });
+      firstLoadCenter = true;
+    }
+
+  } catch (e) {
+    console.error("Error fumigaciones:", e);
+    mostrarAlerta("Error al cargar fumigaciones");
   }
 }
+
 
 /*************************************************
  * LEYENDA
@@ -162,7 +169,7 @@ function agregarLeyenda() {
   div.innerHTML = `
     <b>Insecticida</b><br>
     <i style="background:#1F78B4"></i> Clorpirifós<br>
-    <i style="background:#33A02C"></i> Imidacloprid / Praletrina<br>
+    <i style="background:#33A02C"></i> Alfacipermetrina <br>
     <i style="background:#FF7F00"></i> Malatión<br>
     <i style="background:#6A3D9A"></i> Pirimifos<br>
     <i style="background:#E31A1C"></i> Transflutrina<br>
@@ -178,33 +185,56 @@ function agregarLeyenda() {
  * TABLA LOTES
  *************************************************/
 async function cargarTablaLotes() {
-  const jurisdiccion = document.getElementById("jurisdiccionSelect").value || null;
+  const token = sessionStorage.getItem("token_entomo");
+  const jurisdiccion =
+    document.getElementById("jurisdiccionSelect").value || null;
 
-  let query = supabaseClient
-    .from("vw_lotes_resumen")
-    .select("*");
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/lotes-resumen",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
+        body: JSON.stringify({
+          token: token,
+          jurisdiccion
+        })
+      }
+    );
 
-  if (jurisdiccion) query = query.eq("jurisdiccion", jurisdiccion);
-  
+    const r = await res.json();
+    
+    if (!r.valida) throw r.error;
 
-  const { data, error } = await query;
-  if (error) return;
-  
-  const tbody = document.querySelector("#tablaLotes tbody");
-  tbody.innerHTML = "";
+    const tbody = document.querySelector("#tablaLotes tbody");
+    tbody.innerHTML = "";
 
-  data.forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.lote}</td>
-      <td>${r.insecticida}</td>
-      <td>${r.total_usado}</td>
-      <td>${r.usos}</td>
-      <td>${r.semanas_usadas}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+    if (!r.data || r.data.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6">Sin datos</td></tr>`;
+      return;
+    }
+
+    r.data.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.lote}</td>
+        <td>${r.insecticida}</td>
+        <td>${r.total_consumo}</td>
+        <td>${r.aplicaciones}</td>
+        <td>${r.secciones_cubiertas}</td>
+        <td>${(r.semanas_usadas || []).join(", ")}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (e) {
+    console.error("Error tabla lotes:", e);
+    mostrarAlerta("Error al cargar resumen de lotes");
+  }
 }
+
 
 /*************************************************
  * JURISDICCIÓN → MUNICIPIOS (TU MAPEO ORIGINAL)

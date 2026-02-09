@@ -1,11 +1,4 @@
 // =======================================
-// 🔹 Supabase
-// =======================================
-const SUPABASE_URL = 'https://dttmexasjpwdlnbikijx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_gcn8tzJGN19kzpc8x38LSQ_ENAFFMEZ';
-const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// =======================================
 // 🔹 Variables globales
 // =======================================
 let map;
@@ -183,33 +176,82 @@ function initEventos() {
 // 🔹 Heatmap
 // =======================================
 async function cargarHeatmap() {
-  let query = supa
-    .from("phmr_heatview")
-    .select("phmr, geojson, municipio")
-    .eq("semana", semanaActual);
+  const token = sessionStorage.getItem("token_entomo");
+  if (!token) return alert("Sesión inválida");
 
-  if (municipioActual) {
-    query = query.eq("municipio", municipioActual);
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/phmr-heatmap",
+      {
+        method: "POST",
+        headers: {  "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
+        body: JSON.stringify({
+          token,
+          semana: semanaActual,
+          municipio: municipioActual
+        })
+      }
+    );
+
+    const json = await res.json();
+
+    // 🔐 Validación de sesión
+    if (!res.ok || json.valida === false || json.error) {
+      alert("Sesión inválida o expirada");
+      cerrarSesion(); // Limpia token y redirige al login
+      return;
+    }
+
+    const data = json.data || [];
+
+    // 🔹 Convertir geojson en puntos para heatmap
+    const puntos = data
+      .map(d => {
+        if (!d.geojson) return null;
+        const c = getCentroGeoJSON(d.geojson);
+        if (!c) return null;
+        return [c.lat, c.lon, d.phmr / 70];
+      })
+      .filter(Boolean);
+
+    // 🔹 Remover capa anterior y agregar nueva
+    if (capaHeat) map.removeLayer(capaHeat);
+
+    capaHeat = L.heatLayer(puntos, {
+      radius: 35,
+      blur: 25,
+      maxZoom: 17
+    }).addTo(map);
+
+  } catch (e) {
+    console.error("Error cargando heatmap:", e);
+    alert("Error cargando los datos. Intenta de nuevo.");
   }
-
-  const { data, error } = await query;
-  if (error) return console.error(error);
-  
-  const puntos = data.map(d => {
-    if (!d.geojson) return null;
-    const c = getCentroGeoJSON(d.geojson);
-    if (!c) return null;
-    return [c.lat, c.lon, d.phmr / 70];
-  }).filter(Boolean);
-
-  if (capaHeat) map.removeLayer(capaHeat);
-
-  capaHeat = L.heatLayer(puntos, {
-    radius: 35,
-    blur: 25,
-    maxZoom: 17
-  }).addTo(map);
 }
+
+function getCentroGeoJSON(g) {
+  let coords = [];
+
+  if (g.type === "Polygon") coords = g.coordinates[0];
+  if (g.type === "MultiPolygon") coords = g.coordinates[0][0];
+  if (!coords || !coords.length) return null;
+
+  let lat = 0, lon = 0;
+  coords.forEach(c => {
+    lon += c[0];
+    lat += c[1];
+  });
+
+  return { lat: lat / coords.length, lon: lon / coords.length };
+}
+
+function cerrarSesion() {
+  sessionStorage.clear();
+  window.location.href = "../index.html";
+}
+
 
 function getCentroGeoJSON(g) {
   let coords = [];
@@ -268,37 +310,65 @@ async function obtenerClimaSemanal(municipio, semana) {
 // 🔹 Gráfica
 // =======================================
 async function cargarGraficaPHMR() {
-  let query = supa
-    .from("phmr_heatview")
-    .select("semana, phmr");
+  const token = sessionStorage.getItem("token_entomo");
+  if (!token) return alert("Sesión inválida");
 
-  if (municipioActual) query = query.eq("municipio", municipioActual);
+  try {
+    const res = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/phmr-heatview",
+      {
+        method: "POST",
+        headers: {"Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
+        body: JSON.stringify({
+          token,
+          municipio: municipioActual
+        })
+      }
+    );
 
-  const { data, error } = await query;
-  if (error) return console.error(error);
+    const json = await res.json();
 
-  const semanas = {};
-  data.forEach(r => {
-    if (!semanas[r.semana]) semanas[r.semana] = [];
-    semanas[r.semana].push(r.phmr);
-  });
+    // 🔐 Validación de sesión
+    if (!res.ok || json.valida === false || json.error) {
+      alert("Sesión inválida o expirada");
+      cerrarSesion(); // Limpia token y redirige al login
+      return;
+    }
 
-  const labels = [];
-  const phmrVals = [];
-  const tempVals = [];
+    const data = json.data || [];
 
-  const munClima = municipioActual || "39";
+    // 🔹 Organizar PHMR por semana
+    const semanas = {};
+    data.forEach(r => {
+      if (!semanas[r.semana]) semanas[r.semana] = [];
+      semanas[r.semana].push(r.phmr);
+    });
 
-  for (const s of Object.keys(semanas).sort((a,b)=>a-b)) {
-    labels.push("Sem " + s);
-    const avg = semanas[s].reduce((a,b)=>a+b,0) / semanas[s].length;
-    phmrVals.push(avg.toFixed(2));
-    const t = await obtenerClimaSemanal(munClima, Number(s));
-    tempVals.push(t ? t.toFixed(1) : null);
+    const labels = [];
+    const phmrVals = [];
+    const tempVals = [];
+
+    const munClima = municipioActual || "39";
+
+    // 🔹 Promedios por semana + clima
+    for (const s of Object.keys(semanas).sort((a,b)=>a-b)) {
+      labels.push("Sem " + s);
+      const avg = semanas[s].reduce((a,b)=>a+b,0) / semanas[s].length;
+      phmrVals.push(avg.toFixed(2));
+      const t = await obtenerClimaSemanal(munClima, Number(s));
+      tempVals.push(t ? t.toFixed(1) : null);
+    }
+
+    dibujarGrafica(labels, phmrVals, tempVals);
+
+  } catch (e) {
+    console.error("Error cargando gráfica PHMR:", e);
+    alert("Error cargando los datos de la gráfica. Intenta de nuevo.");
   }
-
-  dibujarGrafica(labels, phmrVals, tempVals);
 }
+
 
 function dibujarGrafica(labels, phmr, temp) {
   const ctx = document.getElementById("graficaPHMR").getContext("2d");
