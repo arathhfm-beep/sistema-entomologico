@@ -7,7 +7,7 @@ async function cargarPositividad() {
   const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
   const municipio   = document.getElementById("municipioSelect").value;
   const semana      = document.getElementById("semanaSelect").value;
-  const token       = sessionStorage.getItem("token_entomo");
+  const token = sessionStorage.getItem("token_entomo");
 
   if (!jurisdiccion || !municipio || !semana) {
     mostrarAlerta("Debe seleccionar jurisdicción, municipio y semana.");
@@ -77,6 +77,10 @@ async function cargarPositividad() {
 
 const leyendaPositividad = L.control({ position: "bottomright" });
 
+function mostrarAlerta(msg){
+  alert(msg);
+}
+
 leyendaPositividad.onAdd = function () {
   const div = L.DomUtil.create("div", "info legend");
   div.style.background = "white";
@@ -135,8 +139,8 @@ async function cargarTablaActividades(jurisdiccion) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer TU_ANON_KEY",
-          "apikey": "TU_ANON_KEY"
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
         },
         body: JSON.stringify({
           token,

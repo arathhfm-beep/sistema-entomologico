@@ -116,7 +116,6 @@ async function cargarFumigaciones() {
         })
       }
     );
-
     const r = await res.json();
 
     // ❌ Si ya hubo otra llamada después, ignorar esta
