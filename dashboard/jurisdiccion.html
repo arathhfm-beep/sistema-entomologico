@@ -67,6 +67,15 @@ th, td { padding:10px; font-size:13px; border-bottom:1px solid #e5e7eb; }
 .detalle-wrapper { max-height:0; overflow:hidden; opacity:0; transition:.3s; }
 .detalle-wrapper.abierto { max-height:500px; opacity:1; }
 .detalle-box { padding:14px; background:#fff; }
+.fila-trabajada {
+  background-color: #ecfdf5; /* verde */
+}
+
+.fila-error {
+  background-color: #fee2e2; /* rojo */
+  border-left: 4px solid #dc2626;
+}
+
 </style>
 </head>
 
@@ -134,7 +143,8 @@ async function activar() {
   );
 
   const data = await res.json();
-
+  
+  
   if (!data.ok || !Array.isArray(data.casos)) {
     alert("Clave no válida o sin datos");
     console.warn(data);
@@ -174,7 +184,15 @@ function renderCasos(lista) {
   tbody.innerHTML = "";
 
   lista.forEach(c => {
+    const manzana = (c.manzana || "").trim().toUpperCase();
     const tr = document.createElement("tr");
+
+    if (manzana === "X") {
+  tr.className = "fila-error";
+} else if (manzana !== "") {
+  tr.className = "fila-trabajada";
+}
+
     tr.innerHTML = `
       <td>${c.folio_caso}</td>
       <td>${c.fec_captura || ""}</td>
@@ -194,13 +212,13 @@ function renderCasos(lista) {
         <b>Tel:</b> ${c.telefono || "-"}<br><br>
 
         <label><b>Manzana</b></label><br>
-        <input id="manzana_${c.folio_caso}" style="width:100%;padding:6px;margin-bottom:6px"><br>
+        <input id="manzana_${c.folio_caso}" value="${c.manzana || ''}" style="width:100%;padding:6px;margin-bottom:6px"><br>
 
         <label><b>Sección</b></label><br>
-        <input id="seccion_${c.folio_caso}" style="width:100%;padding:6px;margin-bottom:6px"><br>
+        <input id="seccion_${c.folio_caso}" value="${c.sector || ''}" style="width:100%;padding:6px;margin-bottom:6px"><br>
 
         <label><b>Observaciones</b></label><br>
-        <textarea id="obs_${c.folio_caso}" rows="3" style="width:100%;padding:6px"></textarea><br>
+        <textarea id="obs_${c.folio_caso}" value="${c.observaciones || ''}" rows="3" style="width:100%;padding:6px"></textarea><br>
 
         <button class="btn-detalle"
           onclick="guardarSeguimiento('${c.folio_caso}')">
