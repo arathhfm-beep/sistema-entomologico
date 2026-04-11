@@ -11,11 +11,11 @@ let requestFumigacionesId = 0;
  * INIT
  *************************************************/
 function init() {
-  map = L.map("map").setView([25.7, -100.3], 8);
+  mapPHMR = L.map("map").setView([25.7, -100.3], 8);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
-  }).addTo(map);
+  }).addTo(mapPHMR);
 
   initSlider();
   agregarLeyenda();
@@ -94,7 +94,7 @@ async function cargarFumigaciones() {
 
   // 🧹 Limpiar capa anterior
   if (capaFumigaciones) {
-    map.removeLayer(capaFumigaciones);
+    mapPHMR.removeLayer(capaFumigaciones);
     capaFumigaciones = null;
   }
 
@@ -141,10 +141,10 @@ async function cargarFumigaciones() {
           `Sección: ${f.properties.seccion}<br>${f.properties.insecticida}`
         );
       }
-    }).addTo(map);
+    }).addTo(mapPHMR);
 
     if (!firstLoadCenter && capaFumigaciones.getBounds().isValid()) {
-      map.fitBounds(capaFumigaciones.getBounds(), { padding: [20, 20] });
+      mapPHMR.fitBounds(capaFumigaciones.getBounds(), { padding: [20, 20] });
       firstLoadCenter = true;
     }
 
@@ -159,7 +159,7 @@ async function cargarFumigaciones() {
  * LEYENDA
  *************************************************/
 function agregarLeyenda() {
-  if (capaLeyenda) map.removeControl(capaLeyenda);
+  if (capaLeyenda) mapPHMR.removeControl(capaLeyenda);
 
   capaLeyenda = L.control({ position: "bottomright" });
 
@@ -177,7 +177,7 @@ function agregarLeyenda() {
   return div;
 };
 
-  capaLeyenda.addTo(map);
+  capaLeyenda.addTo(mapPHMR);
 }
 
 /*************************************************

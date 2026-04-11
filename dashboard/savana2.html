@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="dashboard">
+
+<header class="titulo">
+  <h1>MONTERREY NORTE</h1>
+  <h2>Jurisdicción Sanitaria No.1</h2>
+</header>
+
+<section class="kpis">
+  <div class="kpi">
+    <span id="kpiConfirmados">0</span>
+    <p>Confirmados</p>
+  </div>
+
+  <div class="kpi">
+    <span id="kpiProbables">0</span>
+    <p>Probables</p>
+  </div>
+
+  <div class="kpi">
+    <span id="kpiForaneos">0</span>
+    <p>Foráneos</p>
+  </div>
+</section>
+
+<section class="fila">
+
+  <div class="card">
+    <h3>Casos por municipio</h3>
+    <div id="treemapMunicipios"></div>
+  </div>
+
+  <div class="card">
+    <h3>Comportamiento Ovitramps</h3>
+    <canvas id="graficaCasos"></canvas>
+  </div>
+
+</section>
+
+<section class="fila">
+
+  <div class="card">
+    <h3>Mapa Casos</h3>
+    <div id="mapCasos"></div>
+  </div>
+
+  <div class="card">
+    <h3>Mapa PHMR</h3>
+    <div id="mapPHMR"></div>
+  </div>
+
+</section>
+
+</div>
+</body>
+</html>

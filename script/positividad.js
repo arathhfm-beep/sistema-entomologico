@@ -1,5 +1,5 @@
 let map = L.map('map').setView([25.7, -100.3], 10);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapPHMR);
 
 let capaPositividad = null;
 
@@ -37,7 +37,7 @@ async function cargarPositividad() {
 
     if (!r.valida) throw r.error;
 
-    if (capaPositividad) map.removeLayer(capaPositividad);
+    if (capaPositividad) mapPHMR.removeLayer(capaPositividad);
 
     capaPositividad = L.geoJSON(r.geojson, {
       style: f => {
@@ -63,10 +63,10 @@ async function cargarPositividad() {
           Positividad: ${p.positividad}
         `);
       }
-    }).addTo(map);
+    }).addTo(mapPHMR);
 
     if (r.geojson.features.length) {
-      map.fitBounds(capaPositividad.getBounds());
+      mapPHMR.fitBounds(capaPositividad.getBounds());
     }
 
   } catch (e) {
@@ -107,7 +107,7 @@ leyendaPositividad.onAdd = function () {
   return div;
 };
 
-leyendaPositividad.addTo(map);
+leyendaPositividad.addTo(mapPHMR);
 
 function obtenerNombreMunicipio(jurisdiccion, municipioId) {
     const lista = jurisdiccionMunicipios[jurisdiccion];
