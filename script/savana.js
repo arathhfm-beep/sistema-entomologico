@@ -507,20 +507,20 @@ async function cargarMapaCasos(municipio){
 
   const token = sessionStorage.getItem("token_entomo");
 
+  if(capaCasosConfirmados) mapCasos.removeLayer(capaCasosConfirmados);
+  if(capaCasosProbables) mapCasos.removeLayer(capaCasosProbables);
+
   try{
 
-    // ======================
+    // =========================
     // CONFIRMADOS
-    // ======================
-
-    const resConfirmados = await fetch(
+    // =========================
+    const resC = await fetch(
       "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/heatmapcasos",
       {
         method:"POST",
-        headers: { "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
-      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
-      body: JSON.stringify({
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
           token,
           municipio,
           capa:"confirmados"
@@ -528,21 +528,22 @@ async function cargarMapaCasos(municipio){
       }
     );
 
-    const rConfirmados = await resConfirmados.json();
-    if(!rConfirmados.valida) throw rConfirmados.error;
+    const rC = await resC.json();
 
-    // ======================
+    if(!rC.valida || !rC.geojson){
+      console.error("Error confirmados:", rC);
+      return;
+    }
+
+    // =========================
     // PROBABLES
-    // ======================
-
-    const resProbables = await fetch(
+    // =========================
+    const resP = await fetch(
       "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/heatmapcasos",
       {
         method:"POST",
-        headers: { "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
-      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
-      body: JSON.stringify({
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
           token,
           municipio,
           capa:"probables"
@@ -550,36 +551,35 @@ async function cargarMapaCasos(municipio){
       }
     );
 
-    const rProbables = await resProbables.json();
-    if(!rProbables.valida) throw rProbables.error;
+    const rP = await resP.json();
 
-    // ======================
-    // LIMPIAR
-    // ======================
+    if(!rP.valida || !rP.geojson){
+      console.error("Error probables:", rP);
+      return;
+    }
 
-    if(capaCasosConfirmados) mapCasos.removeLayer(capaCasosConfirmados);
-    if(capaCasosProbables) mapCasos.removeLayer(capaCasosProbables);
-
-    // ======================
-    // GEOJSON → HEATMAP
-    // ======================
-
-    const confirmados = rConfirmados.geojson.features
+    // =========================
+    // CONVERTIR A PUNTOS (BIEN HECHO)
+    // =========================
+    const confirmados = rC.geojson.features
       .map(f=>{
         const c = getCentroGeoJSON(f.geometry);
         if(!c) return null;
-        return [c.lat, c.lon, f.properties.casos];
+        return [c.lat, c.lon, f.properties.casos || 1];
       })
       .filter(Boolean);
 
-    const probables = rProbables.geojson.features
+    const probables = rP.geojson.features
       .map(f=>{
         const c = getCentroGeoJSON(f.geometry);
         if(!c) return null;
-        return [c.lat, c.lon, f.properties.casos];
+        return [c.lat, c.lon, f.properties.casos || 1];
       })
       .filter(Boolean);
 
+    // =========================
+    // CAPAS
+    // =========================
     capaCasosConfirmados = L.heatLayer(confirmados,{
       radius:35,
       blur:20,
@@ -588,14 +588,7 @@ async function cargarMapaCasos(municipio){
         0.7:"red",
         1:"darkred"
       }
-    });
-    L.heatLayer([
-  [25.6866,-100.3161,1],
-  [25.68,-100.31,1],
-  [25.69,-100.32,1]
-],{
-  radius:40
-}).addTo(mapCasos);
+    }).addTo(mapCasos);
 
     capaCasosProbables = L.heatLayer(probables,{
       radius:35,
@@ -605,15 +598,12 @@ async function cargarMapaCasos(municipio){
         0.7:"orange",
         1:"red"
       }
-    });
-
-    actualizarControlCapas();
+    }).addTo(mapCasos);
 
   }
   catch(e){
-    console.error("Error heatmap casos:",e);
+    console.error("Error mapa casos:", e);
   }
-
 }
 
 
