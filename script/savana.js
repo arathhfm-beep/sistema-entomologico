@@ -307,7 +307,7 @@ async function cargarGrafica(municipio){
         data:{
           labels: semanas.map(s=>"Sem "+s),
 
-          // 🔥 IMPORTANTE
+          // 🔥 DATA EXTRA
           nebulizacion: nebulizaciones,
 
           datasets:[
@@ -343,7 +343,6 @@ async function cargarGrafica(municipio){
           responsive:true,
           maintainAspectRatio:false,
 
-          // 🔥 HOVER CORREGIDO
           interaction:{
             mode:'index',
             intersect:false
@@ -351,7 +350,29 @@ async function cargarGrafica(municipio){
 
           plugins:{
             legend:{
-              position:"top"
+              position:"top",
+              labels:{
+                usePointStyle: true,
+                pointStyle: 'line',
+                boxWidth: 40,
+
+                // 🔥 AQUÍ SE AGREGA LA LEYENDA DEL FONDO
+                generateLabels: (chart) => {
+
+                  const defaultLabels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+
+                  defaultLabels.push({
+                    text: "Nebulización",
+                    fillStyle: "rgba(59,130,246,0.25)",
+                    strokeStyle: "rgba(59,130,246,0.8)",
+                    lineWidth: 2,
+                    hidden: false,
+                    datasetIndex: null
+                  });
+
+                  return defaultLabels;
+                }
+              }
             },
             tooltip:{
               mode:'index',
@@ -372,7 +393,6 @@ async function cargarGrafica(municipio){
           }
         },
 
-        // 🔥 AQUÍ SE ACTIVA EL FONDO
         plugins:[pluginNebulizacion]
       }
     );
