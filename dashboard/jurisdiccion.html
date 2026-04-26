@@ -218,7 +218,9 @@ function renderCasos(lista) {
         <input id="seccion_${c.folio_caso}" value="${c.sector || ''}" style="width:100%;padding:6px;margin-bottom:6px"><br>
 
         <label><b>Observaciones</b></label><br>
-        <textarea id="obs_${c.folio_caso}" value="${c.observaciones || ''}" rows="3" style="width:100%;padding:6px"></textarea><br>
+         <textarea id="obs_${c.folio_caso}" rows="3" style="width:100%;padding:6px">
+${c.observaciones || ''}
+</textarea><br>
 
         <button class="btn-detalle"
           onclick="guardarSeguimiento('${c.folio_caso}')">
@@ -273,20 +275,32 @@ function calcularKPIs(lista) {
 }
 
 async function guardarSeguimiento(folio) {
-  const manzana = document.getElementById(`manzana_${folio}`).value;
-  const seccion = document.getElementById(`seccion_${folio}`).value;
-  const observaciones = document.getElementById(`obs_${folio}`).value;
+  const manzana = document
+    .getElementById(`manzana_${folio}`)
+    .value.trim().toUpperCase();
+
+  const seccion = document
+    .getElementById(`seccion_${folio}`)
+    .value.trim().toUpperCase();
+
+  const observaciones = document
+    .getElementById(`obs_${folio}`)
+    .value.trim();
+
   const clave = document.getElementById("clave").value;
-  
-  if (!manzana && !seccion) {
+
+  if (!manzana && !seccion && !observaciones) {
     alert("No hay datos para guardar");
     return;
   }
- const res = await fetch(
+
+  const res = await fetch(
     "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/guardar-seguimiento",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         clave,
         folio_caso: folio,
@@ -298,7 +312,26 @@ async function guardarSeguimiento(folio) {
   );
 
   const data = await res.json();
+
+  if (data.ok) {
+    // ✅ ACTUALIZAR EN MEMORIA
+    const caso = casosOriginales.find(c => c.folio_caso === folio);
+    if (caso) {
+      caso.manzana = manzana;
+      caso.sector = seccion;
+      caso.observaciones = observaciones;
+    }
+
+    // ✅ RE-RENDER PARA ACTUALIZAR COLOR Y DATOS
+    aplicarFiltros();
+  } else {
+    alert("Error al guardar");
+    console.error(data);
+  }
 }
+
+
+
 </script>
 
 </body>
