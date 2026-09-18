@@ -100,7 +100,7 @@ async function cargarFumigaciones() {
 
   try {
     const res = await fetch(
-      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/smart-service",
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/dashboard-nebulizacion",
       {
         method: "POST",
         headers: {

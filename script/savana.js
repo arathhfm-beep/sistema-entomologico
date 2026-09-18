@@ -530,7 +530,7 @@ async function cargarMapaPHMR(municipio){
     return;
   }
   const semanaActual = Math.max(1, obtenerSemanaActual() - 3);
-  const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/phmr-heatmap",{
+  const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/dashboard-phmr",{
    method: "POST",
         headers: {
           "Content-Type": "application/json",

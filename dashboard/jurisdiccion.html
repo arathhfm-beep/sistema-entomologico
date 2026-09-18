@@ -128,19 +128,25 @@ th, td { padding:10px; font-size:13px; border-bottom:1px solid #e5e7eb; }
 <script>
 let casosOriginales = [];
 let detalleAbierto = null;
-
+const token = sessionStorage.getItem("token_entomo");
 async function activar() {
   const clave = document.getElementById("clave").value.trim();
   if (!clave) return alert("Ingresa una clave");
+  
 
   const res = await fetch(
-    "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/hyper-worker",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clave })
-    }
-  );
+  "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/hyper-worker",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      clave,
+      token
+    })
+  }
+);
 
   const data = await res.json();
   
@@ -301,13 +307,14 @@ async function guardarSeguimiento(folio) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        clave,
-        folio_caso: folio,
-        manzana,
-        sector: seccion,
-        observaciones
-      })
+     body: JSON.stringify({
+  token,
+  clave,
+  folio_caso: folio,
+  manzana,
+  sector: seccion,
+  observaciones
+})
     }
   );
 
