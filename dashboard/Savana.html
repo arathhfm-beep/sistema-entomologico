@@ -187,9 +187,25 @@ canvas{
       <p>Vigilancia Epidemiológica y Entomológica</p>
     </div>
 
-    <div class="header-right">
-      <select id="filtroMunicipio"></select>
-    </div>
+   <div class="header-right" style="display:flex; gap:10px;">
+
+  <select id="filtroJurisdiccion">
+    <option value="">Todo el estado</option>
+    <option value="1">Jurisdicción 1</option>
+    <option value="2">Jurisdicción 2</option>
+    <option value="3">Jurisdicción 3</option>
+    <option value="4">Jurisdicción 4</option>
+    <option value="5">Jurisdicción 5</option>
+    <option value="6">Jurisdicción 6</option>
+    <option value="7">Jurisdicción 7</option>
+    <option value="8">Jurisdicción 8</option>
+  </select>
+
+  <select id="filtroMunicipio">
+    <option value="">Cargando municipios...</option>
+  </select>
+
+</div>
   </header>
 
   <!-- KPIs -->
@@ -246,7 +262,7 @@ canvas{
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
-
+<script src="../script/permisos.js"></script>
 <script src="../script/savana.js"></script>
 </body>
 </html>

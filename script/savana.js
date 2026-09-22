@@ -1,6 +1,37 @@
 const filtroMunicipio = document.getElementById("filtroMunicipio");
 const tituloMunicipio = document.getElementById("tituloMunicipio");
+const filtroJurisdiccion =
+  document.getElementById("filtroJurisdiccion");
 
+/* =========================================================
+   JURISDICCIÓN ACTIVA DE SÁBANA
+   ========================================================= */
+function obtenerJurisdiccionSavana() {
+  const rol = (
+    sessionStorage.getItem("rol_entomo") || ""
+  ).toUpperCase();
+
+  // Supervisor: usa el filtro visible de la pantalla.
+  if (rol === "SUPERVISOR") {
+    const valor = filtroJurisdiccion?.value;
+    if (!valor) return null;
+
+    const jur = Number(valor);
+    return Number.isInteger(jur) && jur >= 1 && jur <= 8
+      ? jur
+      : null;
+  }
+
+  // Otros roles: usa la jurisdicción guardada en sesión.
+  // El backend vuelve a validar el alcance real.
+  const valor = sessionStorage.getItem("jurisdiccion_entomo");
+  if (!valor) return null;
+
+  const jur = Number(valor);
+  return Number.isInteger(jur) && jur >= 1 && jur <= 8
+    ? jur
+    : null;
+}
 const kpiConfirmados = document.getElementById("kpiConfirmados");
 const kpiProbables = document.getElementById("kpiProbables");
 const kpiForaneos = document.getElementById("kpiForaneos");
@@ -18,6 +49,10 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapPHMR)
 
 let capaCasos = null;
 let capaPHMR = null;
+
+// Evita que respuestas viejas de consultas asíncronas vuelvan a pintar el mapa.
+let consultaMapaCasosId = 0;
+let consultaMapaPHMRId = 0;
 
 function obtenerSemanaActual() {
 
@@ -81,46 +116,113 @@ const MUNICIPIOS = {
 /* =========================
    FILTRO
 ========================= */
-function cargarFiltroMunicipios(){
-  filtroMunicipio.innerHTML = '<option value="">Estado (Nuevo León)</option>';
-
-  Object.entries(MUNICIPIOS).forEach(([id,m])=>{
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = m.nombre;
-    filtroMunicipio.appendChild(opt);
-  });
-}
-
 filtroMunicipio.addEventListener("change", cargarTodo);
 
 /* =========================
    GENERAL
 ========================= */
-function cargarTodo(){
+function cargarTodo() {
+
+  console.log("=== CARGAR TODO ===", {
+    rol: sessionStorage.getItem("rol_entomo"),
+    jurSesion: sessionStorage.getItem("jurisdiccion_entomo"),
+    jurSelector: filtroJurisdiccion?.value || "",
+    jurisdiccion: obtenerJurisdiccionSavana(),
+    municipio: filtroMunicipio?.value || null
+  });
+
   const municipio = filtroMunicipio.value;
 
-  // titulo
-  if(municipio && MUNICIPIOS[municipio]){
-    const m = MUNICIPIOS[municipio];
-    tituloMunicipio.textContent = m.nombre.toUpperCase();
+  if (municipio) {
 
-    mapCasos.setView([m.lat, m.lon], 12);
-    mapPHMR.setView([m.lat, m.lon], 12);
-  }else{
-    tituloMunicipio.textContent = "NUEVO LEÓN";
-    mapCasos.setView([25.6866, -100.3161], 9);
-    mapPHMR.setView([25.6866, -100.3161], 9);
+    const option =
+      filtroMunicipio.options[
+        filtroMunicipio.selectedIndex
+      ];
+
+    const nombre =
+      option?.textContent || `Municipio ${municipio}`;
+
+    tituloMunicipio.textContent =
+      nombre.toUpperCase();
+
+    /*
+     * Si tenemos coordenadas conocidas,
+     * centramos los mapas.
+     */
+    if (MUNICIPIOS[municipio]) {
+
+      const m = MUNICIPIOS[municipio];
+
+      mapCasos.setView(
+        [m.lat, m.lon],
+        12
+      );
+
+      mapPHMR.setView(
+        [m.lat, m.lon],
+        12
+      );
+    }
+
+  } else {
+
+    /*
+     * Sin municipio seleccionado.
+     */
+
+    const rol =
+      sessionStorage.getItem("rol_entomo");
+
+    const jurisdiccion =
+      sessionStorage.getItem(
+        "jurisdiccion_entomo"
+      );
+
+    if (
+      rol &&
+      rol.toUpperCase() !== "SUPERVISOR" &&
+      jurisdiccion
+    ) {
+
+      tituloMunicipio.textContent =
+        `JURISDICCIÓN ${jurisdiccion}`;
+
+    } else if (filtroJurisdiccion.value) {
+
+      tituloMunicipio.textContent =
+        `JURISDICCIÓN ${filtroJurisdiccion.value}`;
+
+    } else {
+
+      tituloMunicipio.textContent =
+        "NUEVO LEÓN";
+    }
+
+    mapCasos.setView(
+      [25.6866, -100.3161],
+      9
+    );
+
+    mapPHMR.setView(
+      [25.6866, -100.3161],
+      9
+    );
   }
 
+
   cargarKPIs(municipio);
+
   cargarGrafica(municipio);
+
   cargarMapaCasos(municipio);
+
   cargarMapaPHMR(municipio);
+
   cargarClasificacion(municipio);
+
   cargarTreemapCasos(municipio);
 }
-
 /* =========================
    KPIs
 ========================= */
@@ -132,6 +234,11 @@ async function cargarKPIs(municipio){
     cerrarSesion();
     return;
   }
+  console.log("SÁBANA KPI →", {
+  token,
+  municipio: municipio || null,
+  jurisdiccion: obtenerJurisdiccionSavana()
+});
   try{
     const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/kpis",{
       method: "POST",
@@ -141,9 +248,11 @@ async function cargarKPIs(municipio){
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
         },
         body: JSON.stringify({
-          token,               
-          municipio: municipio || null
-        })
+  token,
+  municipio: municipio || null,
+
+  jurisdiccion: obtenerJurisdiccionSavana()
+})
     });
 
     const r = await res.json();
@@ -206,7 +315,8 @@ async function hayNebulizacion(semana, municipio){
       body: JSON.stringify({
         token,
         semana,
-        municipio: municipio || null
+        municipio: municipio || null,
+        jurisdiccion: obtenerJurisdiccionSavana()
       })
     });
 
@@ -244,9 +354,11 @@ async function cargarGrafica(municipio){
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
         },
       body: JSON.stringify({
-        token,
-        municipio: municipio || null
-      })
+  token,
+  municipio: municipio || null,
+
+  jurisdiccion: obtenerJurisdiccionSavana()
+})
     });
 
     const r = await res.json();
@@ -410,161 +522,158 @@ async function cargarGrafica(municipio){
 async function cargarMapaCasos(municipio){
 
   const token = sessionStorage.getItem("token_entomo");
+  const consultaId = ++consultaMapaCasosId;
 
-  if(capaCasosConfirmados) mapCasos.removeLayer(capaCasosConfirmados);
-  if(capaCasosProbables) mapCasos.removeLayer(capaCasosProbables);
+  console.log("HEATMAP →", {
+    municipio: municipio || null,
+    valorSelector: filtroJurisdiccion?.value || "",
+    jurisdiccion: obtenerJurisdiccionSavana()
+  });
 
-  try{
+  // Limpiar inmediatamente las capas de la consulta anterior.
+  if (capaCasosConfirmados) {
+    mapCasos.removeLayer(capaCasosConfirmados);
+    capaCasosConfirmados = null;
+  }
+  if (capaCasosProbables) {
+    mapCasos.removeLayer(capaCasosProbables);
+    capaCasosProbables = null;
+  }
 
-    // =========================
-    // CONFIRMADOS
-    // =========================
-    const resC = await fetch(
+  try {
+    const peticion = (capa) => fetch(
       "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/heatmapcasos",
       {
         method: "POST",
-       headers: {
+        headers: {
           "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
-      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
         },
         body: JSON.stringify({
           token,
-          capa: "confirmados",
-          municipio: municipio || null
+          capa,
+          municipio: municipio || null,
+          jurisdiccion: obtenerJurisdiccionSavana()
         })
       }
     );
 
-    const rC = await resC.json();
+    const [resC, resP] = await Promise.all([
+      peticion("confirmados"),
+      peticion("probables")
+    ]);
 
-    if(!rC.valida || !rC.geojson){
+    const [rC, rP] = await Promise.all([resC.json(), resP.json()]);
+
+    // Si ya hubo otro cambio de filtro, ignorar por completo esta respuesta vieja.
+    if (consultaId !== consultaMapaCasosId) return;
+
+    if (!rC.valida) {
       console.error("Error confirmados:", rC);
       return;
     }
-
-    // =========================
-    // PROBABLES
-    // =========================
-    const resP = await fetch(
-      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/heatmapcasos",
-      {method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
-      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
-        },
-        body: JSON.stringify({
-          token,
-          capa: "probables",
-          municipio: municipio || null
-        })
-      }
-    );
-
-    const rP = await resP.json();
-
-    if(!rP.valida || !rP.geojson){
+    if (!rP.valida) {
       console.error("Error probables:", rP);
       return;
     }
 
-    // =========================
-    // CONVERTIR A PUNTOS (BIEN HECHO)
-    // =========================
-    const confirmados = rC.geojson.features
-      .map(f=>{
-        const c = getCentroGeoJSON(f.geometry);
-        if(!c) return null;
-        return [c.lat, c.lon, f.properties.casos || 1];
-      })
-      .filter(Boolean);
+    const confirmados = (rC.geojson?.features || []).map(f => {
+      const c = getCentroGeoJSON(f.geometry);
+      return c ? [c.lat, c.lon, f.properties?.casos || 1] : null;
+    }).filter(Boolean);
 
-    const probables = rP.geojson.features
-      .map(f=>{
-        const c = getCentroGeoJSON(f.geometry);
-        if(!c) return null;
-        return [c.lat, c.lon, f.properties.casos || 1];
-      })
-      .filter(Boolean);
+    const probables = (rP.geojson?.features || []).map(f => {
+      const c = getCentroGeoJSON(f.geometry);
+      return c ? [c.lat, c.lon, f.properties?.casos || 1] : null;
+    }).filter(Boolean);
 
-    // =========================
-    // CAPAS
-    // =========================
-    capaCasosConfirmados = L.heatLayer(confirmados,{
-      radius:35,
-      blur:20,
-      gradient:{
-        0.4:"orange",
-        0.7:"red",
-        1:"darkred"
-      }
-    }).addTo(mapCasos);
+    if (confirmados.length) {
+      capaCasosConfirmados = L.heatLayer(confirmados,{
+        radius:35, blur:20,
+        gradient:{0.4:"orange",0.7:"red",1:"darkred"}
+      }).addTo(mapCasos);
+    }
 
-    capaCasosProbables = L.heatLayer(probables,{
-      radius:35,
-      blur:20,
-      gradient:{
-        0.4:"yellow",
-        0.7:"orange",
-        1:"red"
-      }
-    }).addTo(mapCasos);
+    if (probables.length) {
+      capaCasosProbables = L.heatLayer(probables,{
+        radius:35, blur:20,
+        gradient:{0.4:"yellow",0.7:"orange",1:"red"}
+      }).addTo(mapCasos);
+    }
 
-  }
-  catch(e){
-    console.error("Error mapa casos:", e);
+  } catch(e) {
+    if (consultaId === consultaMapaCasosId) {
+      console.error("Error mapa casos:", e);
+    }
   }
 }
+
 
 /* =========================
    MAPA PHMR
 ========================= */
 async function cargarMapaPHMR(municipio){
-  if(capaPHMR) mapPHMR.removeLayer(capaPHMR);
-  const token = sessionStorage.getItem("token_entomo");
+  const consultaId = ++consultaMapaPHMRId;
 
+  if (capaPHMR) {
+    mapPHMR.removeLayer(capaPHMR);
+    capaPHMR = null;
+  }
+
+  const token = sessionStorage.getItem("token_entomo");
   if (!token) {
     alert("Sesión inválida");
     cerrarSesion();
     return;
   }
-  const semanaActual = Math.max(1, obtenerSemanaActual() - 3);
-  const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/dashboard-phmr",{
-   method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
-      "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
-        },
-        body: JSON.stringify({
-          token,
-          semana: semanaActual,
-          municipio: municipio || null
-        })
-  });
 
-  const r = await res.json();
+  try {
+    const semanaActual = Math.max(1, obtenerSemanaActual() - 3);
+    const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/dashboard-phmr",{
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
+        "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
+      },
+      body: JSON.stringify({
+        token,
+        semana: semanaActual,
+        municipio: municipio || null,
+        jurisdiccion: obtenerJurisdiccionSavana()
+      })
+    });
 
-  const puntos = r.data.map(d=>{
+    const r = await res.json();
+    if (consultaId !== consultaMapaPHMRId) return;
 
-  let geo = d.geojson;
+    if (!r.valida) {
+      console.error("Error PHMR:", r);
+      return;
+    }
 
-  if(typeof geo === "string"){
-    geo = JSON.parse(geo);
+    const puntos = (r.data || []).map(d => {
+      let geo = d.geojson;
+      if (typeof geo === "string") {
+        try { geo = JSON.parse(geo); } catch { return null; }
+      }
+      const c = getCentroGeoJSON(geo);
+      if (!c) return null;
+      return [c.lat, c.lon, Number(d.phmr) || 0];
+    }).filter(Boolean);
+
+    if (puntos.length) {
+      capaPHMR = L.heatLayer(puntos,{radius:10}).addTo(mapPHMR);
+    }
+  } catch(e) {
+    if (consultaId === consultaMapaPHMRId) {
+      console.error("Error mapa PHMR:", e);
+    }
   }
-
-  const c = getCentroGeoJSON(geo);
-  if(!c) return null;
-
-  return [c.lat, c.lon, d.phmr];
-}).filter(Boolean);
-
-  capaPHMR = L.heatLayer(puntos,{radius:10});
-  capaPHMR.addTo(mapPHMR);
 }
 
-async function cargarTreemapCasos() {
+async function cargarTreemapCasos(municipio) {
   const token = sessionStorage.getItem("token_entomo");
   try {
     const res = await fetch("https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/treemap", {
@@ -573,7 +682,9 @@ async function cargarTreemapCasos() {
       "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
       body: JSON.stringify({
-        token: token
+        token,
+        municipio: municipio || null,
+        jurisdiccion: obtenerJurisdiccionSavana()
       })
     });
 
@@ -667,8 +778,9 @@ async function cargarClasificacion(municipio) {
       "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"},
       body: JSON.stringify({
-        token: token,
-        municipio
+        token,
+        municipio: municipio || null,
+        jurisdiccion: obtenerJurisdiccionSavana()
       })
     });
 
@@ -708,6 +820,87 @@ async function cargarClasificacion(municipio) {
   }
 }
 
-/* INIT */
-cargarFiltroMunicipios();
-cargarTodo();
+/* =========================================================
+   INIT
+   ========================================================= */
+
+async function iniciarDashboard() {
+
+  const token =
+    sessionStorage.getItem("token_entomo");
+
+  if (!token) {
+    alert("Sesión inválida");
+    return;
+  }
+
+  const rol = (
+    sessionStorage.getItem("rol_entomo") || ""
+  ).toUpperCase();
+
+
+  /*
+   * Configura automáticamente:
+   *
+   * SUPERVISOR:
+   *   puede seleccionar jurisdicción.
+   *
+   * OTROS:
+   *   jurisdicción fija según sesión.
+   *
+   * Municipios:
+   *   siempre vienen del backend.
+   */
+  const territorio =
+    await configurarFiltrosTerritoriales({
+      selectJurisdiccion:
+        filtroJurisdiccion,
+
+      selectMunicipio:
+        filtroMunicipio,
+
+      onCambioJurisdiccion:
+        async () => {
+
+          /*
+           * Supervisor cambió de jurisdicción.
+           * Municipios ya fueron recargados
+           * por permisos.js.
+           */
+
+          await cargarTodo();
+        }
+    });
+
+
+  if (!territorio) {
+    console.error(
+      "No fue posible cargar el territorio"
+    );
+
+    return;
+  }
+
+
+  /*
+   * Para usuarios no supervisores no tiene
+   * sentido mostrar un selector bloqueado.
+   *
+   * La jurisdicción ya está determinada
+   * por su sesión.
+   */
+  if (rol !== "SUPERVISOR") {
+
+    filtroJurisdiccion.style.display =
+      "none";
+  }
+
+
+  /*
+   * Carga inicial del dashboard.
+   */
+  cargarTodo();
+}
+
+
+iniciarDashboard();

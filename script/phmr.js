@@ -1,15 +1,22 @@
 // =======================================
 // 🔹 Variables globales
 // =======================================
+
 let map;
 let capaHeat = null;
 let semanaActual = 1;
 let municipioActual = null;
 let chartPHMR = null;
 
+let selectJurisdiccion = null;
+let selectMunicipio = null;
+let controlJurisdiccion = null;
+
+
 // =======================================
 // 🔹 Centros y coords de municipios
 // =======================================
+
 const centrosMunicipio = {
   "48": [25.673, -100.456, 12],
   "39": [25.6866, -100.3161, 12],
@@ -29,9 +36,11 @@ const centrosMunicipio = {
   "49": [25.4338, -100.2146, 12]
 };
 
+
 // 👉 Coordenadas SOLO para clima
+
 const municipiosCoords = {
-  "39": { lat: 25.6866, lon: -100.3161 }, // Monterrey
+  "39": { lat: 25.6866, lon: -100.3161 },
   "6":  { lat: 25.7803, lon: -100.1887 },
   "48": { lat: 25.673, lon: -100.456 },
   "4":  { lat: 25.2846, lon: -100.0154 },
@@ -52,13 +61,322 @@ const municipiosCoords = {
 // =======================================
 // 🔹 Init
 // =======================================
-document.addEventListener("DOMContentLoaded", () => {
+
+document.addEventListener(
+  "DOMContentLoaded",
+  iniciarPHMR
+);
+async function cargarMunicipiosPHMR(
+  selectMunicipio,
+  jurisdiccionSupervisor = null
+) {
+
+  const token =
+    sessionStorage.getItem("token_entomo");
+
+  if (!token) {
+    throw new Error("No existe una sesión activa");
+  }
+
+  selectMunicipio.disabled = true;
+
+  selectMunicipio.innerHTML =
+    `<option value="">Cargando municipios...</option>`;
+
+
+  const body = {
+    token
+  };
+
+
+  const rol = (
+    sessionStorage.getItem("rol_entomo") || ""
+  ).toUpperCase();
+
+
+  if (
+    rol === "SUPERVISOR" &&
+    jurisdiccionSupervisor !== null &&
+    jurisdiccionSupervisor !== "" &&
+    jurisdiccionSupervisor !== undefined
+  ) {
+
+    body.jurisdiccion =
+      Number(jurisdiccionSupervisor);
+  }
+
+
+  try {
+
+    const response = await fetch(
+      "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/municipios-phmr-permitidos",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(body)
+      }
+    );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok || !data.ok) {
+
+      throw new Error(
+        data.error ||
+        "No fue posible obtener municipios PHMR"
+      );
+    }
+
+
+    selectMunicipio.innerHTML = "";
+
+
+    const todos =
+      document.createElement("option");
+
+    todos.value = "";
+
+    todos.textContent =
+      "Todos los municipios";
+
+    selectMunicipio.appendChild(todos);
+
+
+    for (
+      const municipio of data.municipios
+    ) {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        String(
+          municipio.cve_municipio
+        );
+
+      option.textContent =
+        municipio.nombre;
+
+      selectMunicipio.appendChild(
+        option
+      );
+    }
+
+
+    selectMunicipio.disabled = false;
+
+    return data;
+
+
+  } catch (error) {
+
+    console.error(
+      "Error cargando municipios PHMR:",
+      error
+    );
+
+
+    selectMunicipio.innerHTML =
+      `<option value="">
+        Error al cargar municipios
+       </option>`;
+
+
+    selectMunicipio.disabled = true;
+
+    return null;
+  }
+}
+
+async function iniciarPHMR() {
+
+  const token =
+    sessionStorage.getItem("token_entomo");
+
+  if (!token) {
+    alert("Sesión inválida");
+    return;
+  }
+
+
+  // =====================================
+  // ELEMENTOS HTML
+  // =====================================
+
+  selectJurisdiccion =
+    document.getElementById(
+      "jurisdiccionSelect"
+    );
+
+  selectMunicipio =
+    document.getElementById(
+      "municipioSelect"
+    );
+
+  controlJurisdiccion =
+    document.getElementById(
+      "controlJurisdiccion"
+    );
+
+
+  if (!selectMunicipio) {
+    console.error(
+      "No se encontró #municipioSelect"
+    );
+    return;
+  }
+
+
+  // =====================================
+  // INICIALIZAR PHMR ORIGINAL
+  // =====================================
+
   initMapa();
+
   initSlider();
+
   initEventos();
-  cargarHeatmap();
-  cargarGraficaPHMR();
-});
+
+
+  // =====================================
+  // ROL
+  // =====================================
+
+  const rol = (
+    sessionStorage.getItem("rol_entomo") || ""
+  ).toUpperCase();
+
+
+ /* =====================================
+   TERRITORIO PHMR
+   ===================================== */
+
+let territorio = null;
+
+
+if (rol === "SUPERVISOR") {
+
+  const jurInicial =
+    selectJurisdiccion.value
+      ? Number(
+          selectJurisdiccion.value
+        )
+      : null;
+
+
+  territorio =
+    await cargarMunicipiosPHMR(
+      selectMunicipio,
+      jurInicial
+    );
+
+
+  /*
+   * Cuando el supervisor cambia
+   * de jurisdicción.
+   */
+
+  selectJurisdiccion.addEventListener(
+    "change",
+    async () => {
+
+      const jurisdiccion =
+        selectJurisdiccion.value
+          ? Number(
+              selectJurisdiccion.value
+            )
+          : null;
+
+
+      municipioActual = null;
+
+
+      await cargarMunicipiosPHMR(
+        selectMunicipio,
+        jurisdiccion
+      );
+
+
+      map.setView(
+        [25.7, -100.3],
+        8
+      );
+
+
+      await cargarHeatmap();
+
+      await cargarGraficaPHMR();
+    }
+  );
+
+} else {
+
+  /*
+   * JURISDICCIONAL,
+   * ADMINISTRATIVO,
+   * EPIDEMIOLOGO:
+   *
+   * La jurisdicción la determina
+   * exclusivamente el backend.
+   */
+
+  territorio =
+    await cargarMunicipiosPHMR(
+      selectMunicipio
+    );
+}
+
+
+if (!territorio) {
+
+  console.error(
+    "No fue posible cargar el territorio PHMR"
+  );
+
+  return;
+}
+
+  // =====================================
+  // OCULTAR JURISDICCIÓN
+  // =====================================
+
+  if (rol !== "SUPERVISOR") {
+
+    if (controlJurisdiccion) {
+      controlJurisdiccion.style.display =
+        "none";
+    }
+  }
+
+
+  // =====================================
+  // MUNICIPIO INICIAL
+  // =====================================
+
+  municipioActual =
+    selectMunicipio.value || null;
+
+
+  // =====================================
+  // CARGA INICIAL
+  // =====================================
+
+  await cargarHeatmap();
+
+  await cargarGraficaPHMR();
+}
+
+
+// =======================================
+// 🔹 Color PHMR
+// =======================================
 
 function colorPHMR(v) {
   if (v <= 20) return "#0000ff";
@@ -188,10 +506,23 @@ async function cargarHeatmap() {
       "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
         body: JSON.stringify({
-          token,
-          semana: semanaActual,
-          municipio: municipioActual
-        })
+
+  token,
+
+  semana:
+    semanaActual,
+
+  municipio:
+    municipioActual,
+
+  jurisdiccion:
+    selectJurisdiccion &&
+    selectJurisdiccion.value
+      ? Number(
+          selectJurisdiccion.value
+        )
+      : null
+})
       }
     );
 
@@ -284,7 +615,7 @@ function rangoSemanaISO(anio, semana) {
     fin: domingo.toISOString().split("T")[0]
   };
 }
-const ANIO_DATOS_PHMR = 2025;
+const ANIO_DATOS_PHMR = 2026;
 async function obtenerClimaSemanal(municipio, semana) {
   const coords = municipiosCoords[municipio] || municipiosCoords["39"];
   const year = new Date().getFullYear();
@@ -322,9 +653,18 @@ async function cargarGraficaPHMR() {
       "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo",
       "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo" },
         body: JSON.stringify({
-          token,
-          municipio: municipioActual
-        })
+
+  token,
+
+  municipio:
+    municipioActual,
+
+  jurisdiccion:
+    selectJurisdiccion &&
+    selectJurisdiccion.value
+      ? Number(selectJurisdiccion.value)
+      : null
+})
       }
     );
 

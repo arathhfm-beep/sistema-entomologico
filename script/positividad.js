@@ -266,46 +266,296 @@ const jurisdiccionMunicipios = {
   ]
 };
 
-// ===============================
-// FUNCIÓN PARA ACTUALIZAR MUNICIPIOS
-// ===============================
-
-function actualizarMunicipiosPorJurisdiccion() {
-  const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
-  const municipioSelect = document.getElementById("municipioSelect");
-
-  // limpiar opciones actuales
-  municipioSelect.innerHTML = "";
-
-  if (!jurisdiccionMunicipios[jurisdiccion]) {
-    municipioSelect.innerHTML = `<option value="">-- Sin municipios --</option>`;
-    return;
-  }
-
-  // agregar municipios correspondientes
-  jurisdiccionMunicipios[jurisdiccion].forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    opt.textContent = m.nombre;
-    municipioSelect.appendChild(opt);
-  });
-}
-
-
-
 // ======================================================
 // EVENTO: CAMBIA LA JURISDICCIÓN
 // ======================================================
-document.getElementById("jurisdiccionSelect").addEventListener("change", () => {
-    actualizarMunicipiosPorJurisdiccion();
 
-    const jurisdiccion = document.getElementById("jurisdiccionSelect").value;
+document
+  .getElementById(
+    "jurisdiccionSelect"
+  )
+  .addEventListener(
+    "change",
+    async () => {
 
-    // limpiar tabla hasta que seleccione municipio
-    cargarTablaActividades(jurisdiccion, null);
-});
+      await cargarMunicipiosPermitidosPositividad();
+
+      const jurisdiccion =
+        document
+          .getElementById(
+            "jurisdiccionSelect"
+          )
+          .value;
 
 
+      cargarTablaActividades(
+        jurisdiccion
+      );
+    }
+  );
+
+  // ======================================================
+// CONFIGURAR SELECTOR DE JURISDICCIÓN SEGÚN SESIÓN
+// ======================================================
+
+function configurarJurisdiccionPositividad() {
+
+  const rol =
+    (
+      sessionStorage.getItem("rol_entomo") || ""
+    )
+      .trim()
+      .toUpperCase();
+
+  const jurisdiccionSesion =
+    sessionStorage.getItem(
+      "jurisdiccion_entomo"
+    );
+
+  const jurisdiccionSelect =
+    document.getElementById(
+      "jurisdiccionSelect"
+    );
+
+
+  // ----------------------------------------------------
+  // SUPERVISOR
+  // ----------------------------------------------------
+
+  if (rol === "SUPERVISOR") {
+
+    /*
+     * El supervisor conserva las 8 jurisdicciones
+     * disponibles.
+     */
+
+    jurisdiccionSelect.disabled = false;
+
+    return;
+  }
+
+
+  // ----------------------------------------------------
+  // JURISDICCIONAL / ADMINISTRATIVO
+  // ----------------------------------------------------
+
+  const jur =
+    Number(jurisdiccionSesion);
+
+
+  if (
+    !Number.isInteger(jur) ||
+    jur < 1 ||
+    jur > 8
+  ) {
+
+    console.error(
+      "Jurisdicción de sesión inválida:",
+      jurisdiccionSesion
+    );
+
+    jurisdiccionSelect.innerHTML = `
+      <option value="">
+        Jurisdicción no disponible
+      </option>
+    `;
+
+    jurisdiccionSelect.disabled = true;
+
+    return;
+  }
+
+
+  /*
+   * Eliminamos las demás jurisdicciones del selector.
+   *
+   * No solamente lo bloqueamos:
+   * dejamos físicamente únicamente la jurisdicción
+   * correspondiente a la sesión.
+   */
+
+  jurisdiccionSelect.innerHTML = "";
+
+  const option =
+    document.createElement(
+      "option"
+    );
+
+  option.value =
+    String(jur);
+
+  option.textContent =
+    `Jurisdicción ${jur}`;
+
+  option.selected = true;
+
+  jurisdiccionSelect.appendChild(
+    option
+  );
+
+  jurisdiccionSelect.disabled = true;
+}
+// ======================================================
+// CARGAR MUNICIPIOS PERMITIDOS
+// ======================================================
+
+async function cargarMunicipiosPermitidosPositividad() {
+
+  const token =
+    sessionStorage.getItem("token_entomo");
+
+  const rol =
+    (
+      sessionStorage.getItem("rol_entomo") || ""
+    )
+      .trim()
+      .toUpperCase();
+
+  const jurisdiccionSelect =
+    document.getElementById(
+      "jurisdiccionSelect"
+    );
+
+  const municipioSelect =
+    document.getElementById(
+      "municipioSelect"
+    );
+
+
+  // ------------------------------------------------------
+  // LIMPIAR SELECTOR
+  // ------------------------------------------------------
+
+  municipioSelect.innerHTML = `
+    <option value="">
+      -- Todos --
+    </option>
+  `;
+
+
+  // ------------------------------------------------------
+  // BODY
+  // ------------------------------------------------------
+
+  const body = {
+    token
+  };
+
+
+  /*
+   * Solamente SUPERVISOR puede mandar
+   * una jurisdicción como filtro.
+   *
+   * Para JURISDICCIONAL / ADMINISTRATIVO
+   * la Edge Function obtiene la jurisdicción
+   * directamente de la sesión.
+   */
+
+  if (
+    rol === "SUPERVISOR" &&
+    jurisdiccionSelect.value
+  ) {
+
+    body.jurisdiccion =
+      Number(
+        jurisdiccionSelect.value
+      );
+  }
+
+
+  try {
+
+    // ----------------------------------------------------
+    // CONSULTAR TERRITORIO PERMITIDO
+    // ----------------------------------------------------
+
+    const response =
+      await fetch(
+        "https://dttmexasjpwdlnbikijx.supabase.co/functions/v1/municipios-permitidos",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(body)
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    // ----------------------------------------------------
+    // VALIDAR RESPUESTA
+    // ----------------------------------------------------
+
+    if (
+      !response.ok ||
+      !data.ok
+    ) {
+
+      throw new Error(
+        data.error ||
+        "No fue posible cargar los municipios"
+      );
+    }
+
+
+    // ----------------------------------------------------
+    // LLENAR SELECTOR
+    // ----------------------------------------------------
+
+    for (
+      const municipio
+      of data.municipios || []
+    ) {
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value =
+        municipio.cve_municipio;
+
+      option.textContent =
+        municipio.nombre;
+
+      municipioSelect.appendChild(
+        option
+      );
+    }
+
+
+    console.log(
+      "Municipios permitidos:",
+      data.municipios
+    );
+
+
+    return data;
+
+  } catch (error) {
+
+    console.error(
+      "Error cargando municipios:",
+      error
+    );
+
+    municipioSelect.innerHTML = `
+      <option value="">
+        Error al cargar municipios
+      </option>
+    `;
+
+    return null;
+  }
+}
 // ======================================================
 // EVENTO: CAMBIA EL MUNICIPIO
 // ======================================================
@@ -315,3 +565,35 @@ document.getElementById("municipioSelect").addEventListener("change", () => {
 
     cargarTablaActividades(jurisdiccion, municipio);
 });
+
+// ======================================================
+// CARGA INICIAL
+// ======================================================
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
+
+    // 1. Primero fijar jurisdicción según la sesión
+    configurarJurisdiccionPositividad();
+
+    // 2. Después cargar municipios permitidos
+    await cargarMunicipiosPermitidosPositividad();
+
+    // 3. Cargar tabla de la jurisdicción correspondiente
+    const jurisdiccion =
+      document
+        .getElementById(
+          "jurisdiccionSelect"
+        )
+        .value;
+
+    if (jurisdiccion) {
+
+      await cargarTablaActividades(
+        jurisdiccion
+      );
+    }
+
+  }
+);

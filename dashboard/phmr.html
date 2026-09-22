@@ -22,34 +22,51 @@
 
   <!-- Panel de controles -->
   <div id="panel">
-    <div class="control-card">
-      <label>Municipio:</label><br>
-    <select id="municipioSelect">
-      <option value="">-- Selecciona municipio --</option>
-      <option value="48">Santa Catarina</option>
-      <option value="39">Monterrey</option>
-      <option value="4">Allende</option>
-      <option value="5">Anáhuac</option>
-      <option value="6">Apodaca</option>
-      <option value="9">Cadereyta Jiménez</option>
-      <option value="10">Carmen</option>
-      <option value="14">Doctor Arroyo</option>
-      <option value="21">General Escobedo</option>
-      <option value="26">Guadalupe</option>
-      <option value="31">Iturbide</option>
-      <option value="33">Linares</option>
-      <option value="38">Montemorelos</option>
-      <option value="44">Sabinas Hidalgo</option>
-      <option value="46">San Nicolás de los Garza</option>
-      <option value="49">Santiago</option>
+
+  <div
+    class="control-card"
+    id="controlJurisdiccion"
+  >
+    <label>Jurisdicción:</label><br>
+
+    <select id="jurisdiccionSelect">
+      <option value="">Todo el estado</option>
+      <option value="1">Jurisdicción 1</option>
+      <option value="2">Jurisdicción 2</option>
+      <option value="3">Jurisdicción 3</option>
+      <option value="4">Jurisdicción 4</option>
+      <option value="5">Jurisdicción 5</option>
+      <option value="6">Jurisdicción 6</option>
+      <option value="7">Jurisdicción 7</option>
+      <option value="8">Jurisdicción 8</option>
     </select>
-    </div>
-     <div class="control-card">
-      <label>Semana:</label><br>
-      <span id="semanaLabel"></span>
-      <div id="sliderSemana"></div>
-    </div>
   </div>
+
+
+  <div class="control-card">
+
+    <label>Municipio:</label><br>
+
+    <select id="municipioSelect">
+      <option value="">
+        Cargando municipios...
+      </option>
+    </select>
+
+  </div>
+
+
+  <div class="control-card">
+
+    <label>Semana:</label><br>
+
+    <span id="semanaLabel"></span>
+
+    <div id="sliderSemana"></div>
+
+  </div>
+
+</div>
 
     
   </div>
@@ -76,6 +93,7 @@
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="../script/permisos.js"></script>
   <script src="../script/phmr.js"></script>
 
 </body>
