@@ -523,6 +523,7 @@ async function cargarMapaCasos(municipio){
 
   const token = sessionStorage.getItem("token_entomo");
   const consultaId = ++consultaMapaCasosId;
+  const semanaMapa = Math.max(1, obtenerSemanaActual() - 3);
 
   console.log("HEATMAP →", {
     municipio: municipio || null,
@@ -551,11 +552,12 @@ async function cargarMapaCasos(municipio){
           "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo"
         },
         body: JSON.stringify({
-          token,
-          capa,
-          municipio: municipio || null,
-          jurisdiccion: obtenerJurisdiccionSavana()
-        })
+        token,
+        capa,
+        semana: semanaMapa,
+        municipio: municipio || null,
+        jurisdiccion: obtenerJurisdiccionSavana()
+      })
       }
     );
 
@@ -590,15 +592,31 @@ async function cargarMapaCasos(municipio){
 
     if (confirmados.length) {
       capaCasosConfirmados = L.heatLayer(confirmados,{
-        radius:35, blur:20,
-        gradient:{0.4:"orange",0.7:"red",1:"darkred"}
+    radius: 25,
+    blur: 14,
+    maxZoom: 17,
+    minOpacity: 0.35,
+    gradient: {
+      0.25: "yellow",
+      0.55: "orange",
+      0.80: "red",
+      1.00: "darkred"
+    }
       }).addTo(mapCasos);
     }
 
     if (probables.length) {
       capaCasosProbables = L.heatLayer(probables,{
-        radius:35, blur:20,
-        gradient:{0.4:"yellow",0.7:"orange",1:"red"}
+    radius: 25,
+    blur: 14,
+    maxZoom: 17,
+    minOpacity: 0.30,
+    gradient: {
+      0.25: "yellow",
+      0.55: "orange",
+      0.80: "red",
+      1.00: "darkred"
+    }
       }).addTo(mapCasos);
     }
 
