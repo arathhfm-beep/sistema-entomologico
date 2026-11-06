@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mapa de Calor PHMR</title>
 
   <!-- Leaflet & Plugins -->
@@ -12,6 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 
+<link rel="stylesheet" href="phmr-diseno-casos.css">
+<link rel="stylesheet" href="slider-semana-unificado.css">
 </head>
 <body>
 
@@ -60,7 +63,7 @@
 
     <label>Semana:</label><br>
 
-    <span id="semanaLabel"></span>
+    <div id="semanaTexto"></div>
 
     <div id="sliderSemana"></div>
 
@@ -71,10 +74,11 @@
     
   </div>
 
-  <main class="container">
+  <main class="container phmr-container">
     <!-- Mapa -->
        <section class="card">
-      <div id="map"></div>
+      <h4 class="phmr-map-title">Mapa de calor PHMR</h4>
+       <div id="map"></div>
   </section>
 
       <!-- Gráfica -->
@@ -90,7 +94,7 @@
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
-  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script src="../script/permisos.js"></script>
