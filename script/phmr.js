@@ -5,6 +5,7 @@
 let map;
 let capaHeat = null;
 let semanaActual = 1;
+let semanaSeleccionada = 1;
 let municipioActual = null;
 let chartPHMR = null;
 
@@ -37,7 +38,7 @@ const centrosMunicipio = {
 };
 
 
-// 👉 Coordenadas SOLO para clima
+
 
 const municipiosCoords = {
   "39": { lat: 25.6866, lon: -100.3161 },
@@ -449,26 +450,39 @@ function agregarLeyendaHeatmap() {
 // =======================================
 // 🔹 Slider semana
 // =======================================
+function semanaISO(fecha = new Date()) {
+  const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
+  const dia = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dia);
+  const primero = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - primero) / 86400000) + 1) / 7);
+}
+
 function initSlider() {
   const slider = document.getElementById("sliderSemana");
-
+  const etiqueta = document.getElementById("semanaTexto");
+  if (!slider || typeof noUiSlider === "undefined") {
+    console.error("Falta #sliderSemana o la biblioteca noUiSlider");
+    return;
+  }
+  // Mantener la última semana epidemiológica completa.
+  semanaActual = Math.max(1, semanaISO() - 1);
+  semanaSeleccionada = semanaActual;
+  if (slider.noUiSlider) slider.noUiSlider.destroy();
   noUiSlider.create(slider, {
-    start: [1],
-    step: 1,
-    range: { min: 1, max: 52 },
-    tooltips: true,
-    format: {
-      to: v => `Semana ${Math.round(v)}`,
-      from: v => Number(v.replace(/\D/g, ""))
-    }
+    start: [semanaActual], step: 1,
+    range: { min: 1, max: Math.max(2, semanaActual) },
+    connect: [true, false], tooltips: false
   });
-
   slider.noUiSlider.on("update", values => {
-    semanaActual = Number(values[0].replace(/\D/g, ""));
-    document.getElementById("semanaLabel").textContent = semanaActual;
+    semanaSeleccionada = Math.round(Number(values[0]));
+    if (etiqueta) etiqueta.textContent = String(semanaSeleccionada);
   });
-
-  slider.noUiSlider.on("change", cargarHeatmap);
+  slider.noUiSlider.on("change", values => {
+    semanaSeleccionada = Math.round(Number(values[0]));
+    semanaActual = semanaSeleccionada;
+    cargarHeatmap();
+  });
 }
 
 // =======================================
@@ -529,11 +543,12 @@ async function cargarHeatmap() {
     const json = await res.json();
 
     // 🔐 Validación de sesión
-    if (!res.ok || json.valida === false || json.error) {
+    if (res.status === 401 || res.status === 403 || json.valida === false) {
       alert("Sesión inválida o expirada");
-      cerrarSesion(); // Limpia token y redirige al login
+      cerrarSesion();
       return;
     }
+    if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
 
     const data = json.data || [];
 
@@ -550,6 +565,7 @@ async function cargarHeatmap() {
     // 🔹 Remover capa anterior y agregar nueva
     if (capaHeat) map.removeLayer(capaHeat);
 
+    if (typeof L.heatLayer !== "function") throw new Error("No se cargó leaflet.heat");
     capaHeat = L.heatLayer(puntos, {
       radius: 35,
       blur: 25,
@@ -671,11 +687,12 @@ async function cargarGraficaPHMR() {
     const json = await res.json();
 
     // 🔐 Validación de sesión
-    if (!res.ok || json.valida === false || json.error) {
+    if (res.status === 401 || res.status === 403 || json.valida === false) {
       alert("Sesión inválida o expirada");
-      cerrarSesion(); // Limpia token y redirige al login
+      cerrarSesion();
       return;
     }
+    if (!res.ok || json.error) throw new Error(json.error || `HTTP ${res.status}`);
 
     const data = json.data || [];
 
