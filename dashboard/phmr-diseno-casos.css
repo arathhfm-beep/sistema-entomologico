@@ -1,0 +1,10 @@
+/* Apariencia alineada con el módulo de análisis de casos */
+#panel .control-card { width: 240px; }
+#semanaTexto { font-size: 19px; font-weight: 700; color: #1f2937; min-height: 24px; }
+#sliderSemana { width: 100%; margin: 12px 0 6px; }
+.phmr-container { width: 95%; margin: 0 auto; display: grid; gap: 22px; }
+.phmr-container > .card { overflow: hidden; }
+.phmr-map-title { margin: 0; padding: 16px 20px; font-size: 18px; font-weight: 600; color: #1f2937; }
+#map { height: 60vh; min-height: 450px; border-radius: 0 0 18px 18px; }
+#chartContainer { box-sizing: border-box; width: 100%; margin: 0 auto 24px; }
+@media (max-width: 600px) { #panel .control-card { width: 100%; } #map { height: 50vh; min-height: 370px; } }

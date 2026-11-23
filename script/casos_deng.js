@@ -1,0 +1,35 @@
+const FUNCTIONS="https://dttmexasjpwdlnbikijx.supabase.co/functions/v1";
+const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0dG1leGFzanB3ZGxuYmlraWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMDg5MjcsImV4cCI6MjA4Mjg4NDkyN30.BgGvGZvX5WeKOenqDEHwyAM7fP6LtpbYcPt0V064XLo";
+const $=id=>document.getElementById(id), pagina=$("paginaCasos"), filtroJurisdiccion=$("filtroJurisdiccion"), filtroMunicipio=$("filtroMunicipio"), grupoJurisdiccion=$("grupoJurisdiccion"), sliderSemana=$("sliderSemana");
+let semanaActual=1,semanaSeleccionada=1,capaMapa="probables",heat=null,consultaId=0;
+const mapa=L.map("mapCasos").setView([25.6866,-100.3161],9);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(mapa);
+function semanaISO(fecha=new Date()){const d=new Date(Date.UTC(fecha.getFullYear(),fecha.getMonth(),fecha.getDate()));const dia=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-dia);const ini=new Date(Date.UTC(d.getUTCFullYear(),0,1));return Math.ceil((((d-ini)/86400000)+1)/7)}
+function semanaEpiActual(){return Math.max(1,semanaISO()-1)}
+function jurisdiccion(){const rol=(sessionStorage.getItem("rol_entomo")||"").toUpperCase();const v=rol==="SUPERVISOR"?filtroJurisdiccion.value:sessionStorage.getItem("jurisdiccion_entomo");if(!v)return null;const n=Number(v);return Number.isInteger(n)&&n>=1&&n<=8?n:null}
+function municipio(){const v=filtroMunicipio.value;if(!v)return null;const n=Number(v);return Number.isInteger(n)?n:null}
+function cerrarSesion(){sessionStorage.clear();window.location.href="../index.html"}
+function esSesionInvalida(r,d){const m=String(d?.error||d?.message||"").toLowerCase();return r.status===401||r.status===403||((d?.valida===false||d?.ok===false)&&/sesión|sesion|token|expir|credencial|clave/.test(m))}
+async function edge(nombre,body){const r=await fetch(`${FUNCTIONS}/${nombre}`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${ANON}`,"apikey":ANON},body:JSON.stringify(body)});let d;try{d=await r.json()}catch{throw new Error(`Respuesta inválida de ${nombre}`)}if(esSesionInvalida(r,d)){alert("Sesión inválida o expirada");cerrarSesion();throw new Error("SESSION_REDIRECT")}if(!r.ok||d?.valida===false||d?.error)throw new Error(d?.error||`HTTP ${r.status}`);return d}
+function bodyBase(){return{token:sessionStorage.getItem("token_entomo"),anio:new Date().getFullYear(),semana:semanaSeleccionada,jurisdiccion:jurisdiccion(),municipio:municipio()}}
+async function cargar(){if(!sessionStorage.getItem("token_entomo")){alert("Sesión inválida o expirada");cerrarSesion();return}const id=++consultaId;try{const tareaMapa=cargarMapa(id);const r=await edge("analisis-caso-semanal",bodyBase());if(id!==consultaId)return;resumen(r.resumen||{});persistencia(r.persistencia||{},r.colonias||[]);await tareaMapa}catch(e){if(id===consultaId&&e.message!=="SESSION_REDIRECT"){console.error(e);$("estadoMapa").textContent=`Error: ${e.message}`}}finally{if(id===consultaId)void 0}}
+function resumen(r){$("kpiReportados").textContent=Number(r.reportados)||0;$("kpiConfirmados").textContent=Number(r.confirmados)||0;$("kpiProbables").textContent=Number(r.probables_actuales)||0;$("kpiGeo").textContent=Number(r.georreferenciados)||0;$("kpiCobertura").textContent=`${Number(r.cobertura_geografica||0).toFixed(1)}%`}
+function persistencia(p,s){$("textoVentana").textContent=`Ventana SE${p.ventana_inicio??Math.max(1,semanaSeleccionada-3)}–SE${p.ventana_fin??semanaSeleccionada} · ${s.length} colonias`;const tb=$("tablaColonias");tb.innerHTML="";s.forEach(x=>{const tr=document.createElement("tr"),c=clase(x.clasificacion);tr.innerHTML=`<td>${esc(x.jurisdiccion)}</td><td>${esc(x.municipio_nombre ?? x.municipio)}</td><td>${esc(x.colonia_nombre)}</td><td>${+x.casos_4_semanas||0}</td><td>${+x.semanas_con_casos||0}</td><td>${+x.manzanas_afectadas||0}</td><td>${+x.confirmados_4_semanas||0}</td><td><span class="casos-etiqueta ${c}">${esc(x.clasificacion)}</span></td>`;tb.appendChild(tr)});if(!tb.children.length)tb.innerHTML='<tr><td colspan="8">Sin colonias con casos identificados.</td></tr>'}
+function clase(v){v=String(v||"").toUpperCase();return v==="PERSISTENCIA ALTA"?"b-alta":v==="PERSISTENTE"?"b-persistente":v==="RECURRENTE"?"b-recurrente":"b-aislado"}
+async function cargarMapa(id=consultaId){try{const r=await edge("heatmapcasos",{token:sessionStorage.getItem("token_entomo"),capa:capaMapa,semana:semanaSeleccionada,municipio:municipio(),jurisdiccion:jurisdiccion()});if(id!==consultaId)return;const puntos=[];(r.geojson?.features||[]).forEach(f=>{const c=centro(f.geometry);if(c){const casos=Math.max(1,+f.properties?.casos||1);puntos.push([c.lat,c.lon,Math.min(1,casos/4)])}});if(heat){mapa.removeLayer(heat);heat=null}if(puntos.length){if(typeof L.heatLayer!=="function")throw new Error("No se cargó leaflet.heat");heat=L.heatLayer(puntos,{radius:25,blur:14,maxZoom:17,minOpacity:.32,gradient:{.25:"yellow",.55:"orange",.8:"red",1:"darkred"}}).addTo(mapa);const b=L.latLngBounds(puntos.map(p=>[p[0],p[1]]));if(b.isValid())mapa.fitBounds(b.pad(.18),{maxZoom:14})}const total=+r.total||0;$("estadoMapa").textContent=`${capaMapa==="confirmados"?"Confirmados":"Casos reportados"} · SE${semanaSeleccionada}: ${total} caso${total===1?"":"s"} en la capa territorial.`;}catch(e){if(e.message!=="SESSION_REDIRECT"){console.error(e);$("estadoMapa").textContent=`No fue posible cargar el mapa: ${e.message}`}}}
+function centro(g){if(!g)return null;if(g.type==="Feature")g=g.geometry;let a=g?.type==="Polygon"?g.coordinates?.[0]:g?.type==="MultiPolygon"?g.coordinates?.[0]?.[0]:[];if(!a?.length)return null;let lat=0,lon=0,n=0;a.forEach(c=>{if(Array.isArray(c)&&c.length>=2){lon+=+c[0];lat+=+c[1];n++}});return n?{lat:lat/n,lon:lon/n}:null}
+function actualizar(recargar=true){semanaSeleccionada=Math.round(Number(sliderSemana.noUiSlider.get()));$("semanaTexto").textContent=`SE ${semanaSeleccionada}`;if(recargar)cargar()}
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+async function iniciar(){
+ if(!sessionStorage.getItem("token_entomo")){alert("Sesión inválida o expirada");cerrarSesion();return}
+ semanaActual=semanaEpiActual();semanaSeleccionada=semanaActual;
+ noUiSlider.create(sliderSemana,{start:[semanaActual],step:1,range:{min:1,max:Math.max(2,semanaActual)},connect:[true,false],tooltips:false});
+ sliderSemana.noUiSlider.on("update",()=>actualizar(false));sliderSemana.noUiSlider.on("change",()=>actualizar(true));
+ if(typeof configurarFiltrosTerritoriales!=="function"){alert("No se encontraron los filtros territoriales");return}
+ const t=await configurarFiltrosTerritoriales({selectJurisdiccion:filtroJurisdiccion,selectMunicipio:filtroMunicipio,onCambioJurisdiccion:async()=>await cargar()});
+ if(!t)return;
+ if((sessionStorage.getItem("rol_entomo")||"").toUpperCase()!=="SUPERVISOR")grupoJurisdiccion.style.display="none";
+ filtroMunicipio.addEventListener("change",cargar);
+ await cargar();setTimeout(()=>mapa.invalidateSize(),150);
+}
+
+iniciar();

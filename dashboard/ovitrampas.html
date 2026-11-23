@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Captura de Ovitrampas | Dengue</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ovitrampas.css">
+<link rel="stylesheet" href="ovitrampas-geosis.css">
+</head>
+<body>
+<header id="header"><h1 id="tituloPrincipal">Captura semanal de ovitrampas</h1><span class="header-sub">Plataforma Estatal de Dengue</span></header>
+<main class="container">
+<section id="panel" aria-label="Filtros de captura">
+<div class="control-card"><label for="jurisdiccionSelect">Jurisdicción</label><select id="jurisdiccionSelect"><option value="">Selecciona jurisdicción</option></select></div>
+<div class="control-card"><label for="coloniaSelect">Colonia</label><select id="coloniaSelect" disabled><option value="">Selecciona jurisdicción primero</option></select></div>
+<div class="control-card small"><label for="anioSelect">Año</label><input id="anioSelect" type="number" min="2020" max="2100"></div>
+<div class="control-card small"><label for="semanaSelect">Semana epidemiológica</label><select id="semanaSelect"></select></div>
+<div class="control-card"><label for="fechaTrabajo">Fecha de trabajo</label><input id="fechaTrabajo" type="date"></div>
+</section>
+<div id="alerta" class="alerta" role="status" aria-live="polite"></div>
+<section id="kpis" aria-label="Resumen de captura">
+<div class="infoCard"><strong>Total de ovitrampas</strong><span id="kpiTotal">—</span></div>
+<div class="infoCard"><strong>Con lectura</strong><span id="kpiCapturadas">—</span></div>
+<div class="infoCard"><strong>Pendientes de captura</strong><span id="kpiPendientes">—</span></div>
+<div class="infoCard"><strong>Pendientes de GEOSIS</strong><span id="kpiGeosis">—</span></div>
+</section>
+<section class="panel-table">
+<div class="table-header"><div><h2>Lecturas por colonia</h2><p id="subtituloTabla">Selecciona una colonia para consultar sus folios.</p></div><div class="acciones"><button type="button" id="recargarBtn" class="btn secundario" disabled>Actualizar</button><button type="button" id="guardarBtn" class="btn" disabled>Guardar capturas</button></div></div>
+<div class="herramientas"><div class="tabs" role="group" aria-label="Filtrar lecturas"><button type="button" data-filtro="todas" class="tab activa">Todas</button><button type="button" data-filtro="capturadas" class="tab">Con lectura</button><button type="button" data-filtro="pendientes" class="tab">Pendientes</button></div><input type="search" id="buscarFolio" placeholder="Buscar folio" aria-label="Buscar folio"></div>
+<div class="tabla-scroll"><table><thead><tr><th>Folio de ovitrampa</th><th>Lectura</th><th>Fecha Lectura / Recolecta</th><th>Estado de captura</th><th>Estado GEOSIS</th></tr></thead><tbody id="tablaFolios"><tr><td colspan="5" class="vacio">Selecciona jurisdicción y colonia.</td></tr></tbody></table></div>
+<div class="table-footer"><span id="resumenPagina">Sin resultados</span><div class="paginacion"><button id="anteriorBtn" type="button" class="btn secundario" disabled>Anterior</button><span id="paginaLabel">—</span><button id="siguienteBtn" type="button" class="btn secundario" disabled>Siguiente</button></div></div>
+<p class="nota">Acepta números de 0 a 9999 o las claves SL Sin Lectura, SB Sin bote, C Cerrada y D Desfasada. Un campo vacío permanece sin captura y nunca se envía a GEOSIS. Las lecturas sincronizadas o en proceso están bloqueadas.</p>
+</section>
+<section class="geosis-panel" aria-label="Cuentas GEOSIS">
+  <div class="geosis-head"><div><h2>Sincronización con GEOSIS</h2><p>Lecturas pendientes de las cuentas administradas por la jurisdicción, sin importar dónde se realizaron las capturas.</p></div><button type="button" class="btn secundario" id="actualizarGeosis">Actualizar pendientes</button></div>
+  <p id="conexionLocal" class="geosis-mensaje" role="status">Extensión de Chrome: no comprobada.</p>
+  <button type="button" id="detectarLocal" class="btn secundario">Detectar extensión de Chrome</button>
+  <p id="geosisMensaje" class="geosis-mensaje" role="status" aria-live="polite">Selecciona una jurisdicción para consultar sus cuentas GEOSIS.</p>
+  <div id="tarjetasGeosis" class="geosis-grid"></div>
+  <p class="geosis-nota">Validación de comunicación por cuenta y perfil de Chrome. La extensión no guarda lecturas ni modifica estados en esta fase. Inicia sesión manualmente en GEOSIS en este mismo perfil de Chrome.</p>
+</section>
+</main>
+<script src="/script/ovitrampas.js" defer></script>
+</body></html>
